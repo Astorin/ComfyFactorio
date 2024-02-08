@@ -17,6 +17,7 @@ local Core = require 'utils.core'
 local Beams = require 'modules.render_beam'
 local BottomFrame = require 'utils.gui.bottom_frame'
 local Modifiers = require 'utils.player_modifiers'
+local Session = require 'utils.datastore.session_data'
 
 local zone_settings = Public.zone_settings
 local remove_boost_movement_speed_on_respawn
@@ -361,6 +362,36 @@ local function do_clear_enemy_spawners()
         end
     end
 end
+
+local function do_season_fix()
+    local active_surface_index = Public.get('active_surface_index')
+    local surface = game.surfaces[active_surface_index]
+    if not (surface and surface.valid) then
+        return
+    end
+
+    local current_season = Public.get('current_season')
+
+    if current_season then
+        rendering.destroy(current_season)
+    end
+
+    Public.set(
+        'current_season',
+        rendering.draw_text {
+            text = 'Season: ' .. Public.stateful.get_stateful('season'),
+            surface = surface,
+            target = {-0, 12},
+            color = {r = 0.98, g = 0.77, b = 0.22},
+            scale = 3,
+            font = 'heading-1',
+            alignment = 'center',
+            scale_with_zoom = false
+        }
+    )
+end
+
+local do_season_fix_token = Task.register(do_season_fix)
 
 local function do_artillery_turrets_targets()
     local art_table = this.art_table
@@ -805,8 +836,17 @@ remove_boost_movement_speed_on_respawn =
         if not player or not player.valid then
             return
         end
+        if not data.tries then
+            data.tries = 0
+        end
+
         if not player.character or not player.character.valid then
-            Task.set_timeout_in_ticks(10, remove_boost_movement_speed_on_respawn, {player = player})
+            data.tries = data.tries + 1
+            if data.tries > 10 then
+                return
+            end
+
+            Task.set_timeout_in_ticks(10, remove_boost_movement_speed_on_respawn, {player = player, tries = data.tries})
             return
         end
 
@@ -1014,6 +1054,9 @@ function Public.render_direction(surface)
             scale_with_zoom = false
         }
     )
+
+    Task.set_timeout_in_ticks(25, do_season_fix_token, {})
+    Task.set_timeout_in_ticks(50, do_season_fix_token, {})
 
     if counter then
         rendering.draw_text {
@@ -1283,7 +1326,8 @@ function Public.on_player_joined_game(event)
     -- end
 
     local final_battle = Public.get('final_battle')
-    if final_battle then
+    local collection = Public.get_stateful('collection')
+    if final_battle and not collection.final_arena_disabled then
         local boss_room = game.get_surface('boss_room')
         if not boss_room or not boss_room.valid then
             return
@@ -1623,6 +1667,48 @@ function Public.get_func(key)
         return this[key]
     else
         return this
+    end
+end
+
+function Public.show_all_gui(player)
+    for _, child in pairs(player.gui.top.children) do
+        child.visible = true
+    end
+end
+
+function Public.clear_spec_tag(player)
+    if player.tag == '[Spectator]' then
+        player.tag = ''
+    end
+end
+
+function Public.equip_players(starting_items, recreate)
+    local players = Public.get('players')
+
+    for _, player in pairs(game.players) do
+        if player.character and player.character.valid then
+            player.character.destroy()
+        end
+        if player.connected then
+            if not player.character then
+                player.set_controller({type = defines.controllers.god})
+                player.create_character()
+            end
+            player.clear_items_inside()
+            Modifiers.update_player_modifiers(player)
+            if not recreate then
+                starting_items = starting_items or this.starting_items
+                for item, item_data in pairs(this.starting_items) do
+                    player.insert({name = item, count = item_data.count})
+                end
+            end
+            Public.show_all_gui(player)
+            Public.clear_spec_tag(player)
+        else
+            players[player.index] = nil
+            Session.clear_player(player)
+            game.remove_offline_players({player.index})
+        end
     end
 end
 

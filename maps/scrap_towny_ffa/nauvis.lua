@@ -1,7 +1,7 @@
 local Event = require 'utils.event'
 local Server = require 'utils.server'
 local ScenarioTable = require 'maps.scrap_towny_ffa.table'
-local SoftReset = require 'functions.soft_reset'
+local SoftReset = require 'utils.functions.soft_reset'
 local Token = require 'utils.token'
 
 local math_random = math.random
@@ -206,8 +206,8 @@ function Public.initialize(init)
         mgs.terrain_segmentation = 'very-low'
         mgs.autoplace_controls.trees = {
             frequency = 0.666,
-            richness = 1,
-            size = 1.5
+            richness = 2,
+            size = 2
         }
         mgs.property_expression_names = {
             ['control-setting:aux:bias'] = '-0.500000',

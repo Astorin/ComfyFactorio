@@ -2,17 +2,12 @@ local Event = require 'utils.event'
 local Global = require 'utils.global'
 local Gui = require 'utils.gui'
 local Task = require 'utils.task_token'
-local Server = require 'utils.server'
-local try_get_data = Server.try_get_data
--- local set_data = Server.set_data
-
 
 local this = {
     players = {},
     storage = {},
     activate_custom_buttons = false,
-    bottom_quickbar_button = {},
-    bottom_quickbar_button_data = {}
+    bottom_quickbar_button = {}
 }
 
 Global.register(
@@ -34,8 +29,9 @@ local Public = {
 }
 
 local set_location
+local destroy_frame
+local remove_player
 local get_player_data
-local bottom_dataset = 'bottom_frame_data'
 
 local main_frame_name = Gui.uid_name()
 
@@ -54,7 +50,7 @@ local sections = {
     [12] = 6
 }
 
-local restore_bottom_location_token =
+local check_bottom_buttons_token =
     Task.register(
     function(event)
         local player_index = event.player_index
@@ -63,25 +59,16 @@ local restore_bottom_location_token =
             return
         end
 
-        local state = event.state
-        if not state then
+        local player_data, storage_data = get_player_data(player)
+        if not player_data or not storage_data or not next(storage_data) then
+            destroy_frame(player)
+            remove_player(player.index)
             return
         end
-
-        local bottom_right = event.bottom_right or 'bottom_right'
-        local above = event.above or false
-
-        local data = get_player_data(player)
-
-        data.bottom_right = bottom_right
-        data.above = above
-        data.state = state
-
-        set_location(player, state)
     end
 )
 
-local function remove_player(index)
+remove_player = function(index)
     this.players[index] = nil
     this.storage[index] = nil
     this.bottom_quickbar_button[index] = nil
@@ -155,6 +142,19 @@ local function refresh_inner_frames(player)
     end
 end
 
+local refresh_inner_frames_token =
+    Task.register(
+    function(event)
+        local player_index = event.player_index
+        local player = game.get_player(player_index)
+        if not player or not player.valid then
+            return
+        end
+
+        refresh_inner_frames(player)
+    end
+)
+
 ---Adds a new inner frame to the bottom frame
 -- local BottomFrame = require 'utils.gui.bottom_frame'
 -- BottomFrame.add_inner_frame({player = player, element_name = Gui.uid_name(), tooltip = 'Some tooltip', sprite = 'item/raw-fish' })
@@ -217,9 +217,10 @@ local function add_inner_frame(data)
     player_data.row_selection = player_data.row_selection + 1
     player_data.row_selection_added = player_data.row_selection_added + 1
     player_data.row_selection = player_data.row_selection > 2 and 1 or player_data.row_selection
+    Task.priority_delay(2, refresh_inner_frames_token, {player_index = player.index})
 end
 
-local function destroy_frame(player)
+destroy_frame = function(player)
     local gui = player.gui
     local frame = gui.screen[main_frame_name]
     if frame and frame.valid then
@@ -287,6 +288,8 @@ local function create_frame(player, alignment, location, data)
     data.section_data = data.section_data or {}
     data.alignment = alignment
 
+    Task.priority_delay(5, check_bottom_buttons_token, {player_index = player.index})
+
     return frame
 end
 
@@ -340,20 +343,6 @@ set_location = function(player, state)
     Event.raise(Public.events.bottom_quickbar_location_changed, {player_index = player.index, data = data})
 
     data.state = state
-
-    -- local secs = Server.get_current_time()
-    -- if secs ~= nil then
-    --     set_data(
-    --         bottom_dataset,
-    --         player.name,
-    --         {
-    --             bottom_state = data.bottom_state,
-    --             above = data.above,
-    --             state = data.state
-    --         }
-    --     )
-    -- end
-
     create_frame(player, alignment, location, data)
     refresh_inner_frames(player)
 end
@@ -401,6 +390,30 @@ function Public.toggle_player_frame(player, state)
         else
             data.visible = false
             frame.visible = false
+        end
+    end
+end
+
+--- Returns the current frame of the given player
+---@param player LuaPlayer
+---@param section_name string
+---@return table|boolean|nil
+function Public.get_section(player, section_name)
+    local data = get_player_data(player)
+    local section = data.section
+    if not section then
+        return false
+    end
+
+    for _, section_tbl in pairs(section) do
+        if not section_tbl or not next(section_tbl) then
+            break
+        end
+
+        for _, section_data in pairs(section_tbl) do
+            if section_data and section_data.valid and section_data.name == section_name then
+                return section_data
+            end
         end
     end
 end
@@ -524,10 +537,6 @@ Event.add(
             local player = game.get_player(event.player_index)
             local data = get_player_data(player)
             set_location(player, data.state)
-            local secs = Server.get_current_time()
-            if secs ~= nil then
-                try_get_data(bottom_dataset, bottom_dataset.index, restore_bottom_location_token)
-            end
         end
     end
 )

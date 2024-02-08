@@ -7,13 +7,80 @@ local AntiGrief = require 'utils.antigrief'
 local SpamProtection = require 'utils.spam_protection'
 local Color = require 'utils.color_presets'
 local Server = require 'utils.server'
-local Task = require 'utils.task'
+local Task = require 'utils.task_token'
 local Token = require 'utils.token'
+local Global = require 'utils.global'
 local Public = {}
 
 local insert = table.insert
 local lower = string.lower
+local ceil = math.ceil
+local max = math.max
+local min = math.min
 local module_name = Gui.uid_name()
+local next_button_name = Gui.uid_name()
+local prev_button_name = Gui.uid_name()
+local listable_players_name = Gui.uid_name()
+local count_label_name = Gui.uid_name()
+local rows_per_page = 500
+local create_admin_panel
+
+local this = {
+    player_data = {}
+}
+
+Global.register(
+    this,
+    function(tbl)
+        this = tbl
+    end
+)
+
+local function get_player_data(player, remove)
+    local data = this.player_data[player.name]
+    if remove and data then
+        if data and data.frame and data.frame.valid then
+            data.frame.destroy()
+        end
+
+        this.player_data[player.name] = nil
+        return
+    end
+
+    if not this.player_data[player.name] then
+        this.player_data[player.name] = {
+            selected_history_index = nil,
+            filter_player = nil,
+            show_all_players = nil,
+            current_page = nil
+        }
+    end
+
+    return this.player_data[player.name]
+end
+
+local delayed_last_page_token =
+    Task.register(
+    function(event)
+        local player_index = event.player_index
+        local player = game.get_player(player_index)
+        if not player or not player.valid then
+            return
+        end
+
+        local element = event.element
+        if not element or not element.valid then
+            return
+        end
+
+        local player_data = get_player_data(player)
+        local last_page = ceil(player_data.table_count / rows_per_page)
+
+        player_data.current_page = last_page
+        local data = {player = player, frame = element}
+        create_admin_panel(data)
+    end
+)
 
 local function clear_validation_action(player_name, action)
     local admin_button_validation = AntiGrief.get('admin_button_validation')
@@ -383,6 +450,9 @@ local function match_test(value, pattern)
 end
 
 local function contains_text(key, value, search_text)
+    if not key then
+        return false
+    end
     if filter_brackets(search_text) then
         return false
     end
@@ -398,10 +468,76 @@ local function contains_text(key, value, search_text)
     return true
 end
 
-local function draw_events(data)
-    local frame = data.frame
-    local search_text = data.search_text or nil
-    local history = frame['admin_history_select'].items[frame['admin_history_select'].selected_index]
+local function search_text_locally(history, player_data, callback)
+    local antigrief = AntiGrief.get()
+    local history_index = {
+        ['Capsule History'] = antigrief.capsule_history,
+        ['Message History'] = antigrief.message_history,
+        ['Friendly Fire History'] = antigrief.friendly_fire_history,
+        ['Mining History'] = antigrief.mining_history,
+        ['Mining Override History'] = antigrief.whitelist_mining_history,
+        ['Landfill History'] = antigrief.landfill_history,
+        ['Corpse Looting History'] = antigrief.corpse_history,
+        ['Cancel Crafting History'] = antigrief.cancel_crafting_history,
+        ['Deconstruct History'] = antigrief.deconstruct_history,
+        ['Scenario History'] = antigrief.scenario_history
+    }
+
+    local tooltip = 'Click to open mini camera.'
+    if not player_data.current_page then
+        player_data.current_page = 1
+    end
+
+    local target = game.get_player(player_data.target_player_name)
+    local search_text = player_data.search_text
+
+    local start_index = (player_data.current_page - 1) * rows_per_page + 1
+    local end_index = start_index + rows_per_page - 1
+
+    if target ~= nil then
+        if not history_index or not history_index[history] or #history_index[history] <= 0 then
+            return
+        end
+
+        if search_text then
+            for i = end_index, start_index, -1 do
+                local success = contains_text(history_index[history][i], nil, search_text)
+                if success then
+                    if history == 'Message History' then
+                        tooltip = ''
+                    end
+
+                    callback(history_index[history][i], tooltip)
+                end
+            end
+        else
+            for i = end_index, start_index, -1 do
+                if history_index[history][i] and history_index[history][i]:find(player_data.target_player_name) then
+                    callback(history_index[history][i], tooltip)
+                end
+            end
+        end
+    else
+        if search_text then
+            for i = end_index, start_index, -1 do
+                local success = contains_text(history_index[history][i], nil, search_text)
+                if success then
+                    callback(history_index[history][i], tooltip)
+                end
+            end
+        else
+            for i = end_index, start_index, -1 do
+                callback(history_index[history][i], tooltip)
+            end
+        end
+    end
+end
+
+local function draw_events(player_data)
+    local frame = player_data.frame
+    local history = frame.pagination_table.admin_history_select.items[frame.pagination_table.admin_history_select.selected_index]
+    local target_player_name = frame['admin_player_select'].items[frame['admin_player_select'].selected_index]
+    player_data.target_player_name = target_player_name
 
     local scroll_pane
     if frame.datalog then
@@ -421,13 +557,13 @@ local function draw_events(data)
         scroll_pane.style.minimal_width = 790
     end
 
-    local target_player_name = frame['admin_player_select'].items[frame['admin_player_select'].selected_index]
-
-    Public.contains_text(
+    search_text_locally(
         history,
-        search_text,
-        target_player_name,
+        player_data,
         function(history_label, tooltip)
+            if not history_label then
+                return
+            end
             frame.datalog.add(
                 {
                     type = 'label',
@@ -463,15 +599,85 @@ local function text_changed(event)
         return
     end
 
-    local data = {
-        frame = frame,
-        search_text = element.text
-    }
+    local player_data = get_player_data(player)
+    player_data.frame = frame
+    player_data.search_text = element.text:lower()
 
-    draw_events(data)
+    local value = string.len(element.text)
+    if value >= 1000 then
+        player_data.search_text = nil
+        element.text = ''
+        return
+    end
+
+    if player_data.search_text == '' then
+        player_data.search_text = nil
+        local last_page = ceil(player_data.table_count / rows_per_page)
+        player_data.current_page = last_page
+        local data = {player = player, frame = frame}
+        create_admin_panel(data)
+        return
+    end
+
+    draw_events(player_data)
 end
 
-local function create_admin_panel(data)
+local function create_pagination_buttons(player_data, frame, table_count)
+    if table_count == 0 then
+        return
+    end
+    local last_page = ceil(table_count / rows_per_page)
+
+    if not player_data.current_page then
+        player_data.current_page = last_page
+    end
+
+    local current_page = player_data.current_page
+
+    if current_page == 1 and current_page == last_page then
+        return
+    end
+
+    local button_flow =
+        frame.add {
+        type = 'flow',
+        direction = 'horizontal'
+    }
+    local prev_button =
+        button_flow.add {
+        type = 'button',
+        name = prev_button_name,
+        caption = '◀️',
+        style = 'back_button'
+    }
+    prev_button.style.font = 'default-bold'
+    prev_button.style.minimal_width = 32
+    prev_button.tooltip = 'Previous page\nHolding [color=yellow]shift[/color] while pressing LMB/RMB will jump to the first page.'
+
+    local count_label =
+        button_flow.add {
+        type = 'label',
+        name = count_label_name,
+        caption = current_page .. '/' .. last_page
+    }
+    count_label.style.font = 'default-bold'
+    player_data.count_label = count_label
+
+    local next_button =
+        button_flow.add {
+        type = 'button',
+        name = next_button_name,
+        caption = '▶️',
+        style = 'forward_button'
+    }
+    next_button.style.font = 'default-bold'
+    next_button.style.minimal_width = 32
+    next_button.tooltip = 'Next page\nHolding [color=yellow]shift[/color] while pressing LMB/RMB will jump to the last page.'
+
+    player_data.table_count = table_count
+end
+
+create_admin_panel = function(data)
     local player = data.player
     local frame = data.frame
     local antigrief = AntiGrief.get()
@@ -479,22 +685,38 @@ local function create_admin_panel(data)
         return
     end
 
+    local player_data = get_player_data(player)
+
+    local checkbox_state = player_data.show_all_players
+
     frame.clear()
 
+    local players = game.connected_players
+
+    if checkbox_state then
+        players = game.players
+    end
+
     local player_names = {}
-    for _, p in pairs(game.connected_players) do
+    for _, p in pairs(players) do
         insert(player_names, tostring(p.name))
     end
     insert(player_names, 'Select Player')
 
     local selected_index = #player_names
-    if global.admin_panel_selected_player_index then
-        if global.admin_panel_selected_player_index[player.name] then
-            if player_names[global.admin_panel_selected_player_index[player.name]] then
-                selected_index = global.admin_panel_selected_player_index[player.name]
-            end
+    local selected = player_data.filter_player
+    if selected then
+        if player_names[selected] then
+            selected_index = selected
         end
     end
+
+    local checkbox_caption = 'Currently showing: connected players only.'
+    if checkbox_state then
+        checkbox_caption = 'Currently showing: all players that have played on this server.'
+    end
+
+    frame.add({type = 'checkbox', name = listable_players_name, caption = checkbox_caption, state = checkbox_state or false})
 
     local drop_down = frame.add({type = 'drop-down', name = 'admin_player_select', items = player_names, selected_index = selected_index})
     drop_down.style.minimal_width = 326
@@ -670,32 +892,57 @@ local function create_admin_panel(data)
         return
     end
 
-    local search_table = frame.add({type = 'table', column_count = 2})
+    local search_table = frame.add({type = 'table', column_count = 3})
     search_table.add({type = 'label', caption = 'Search: '})
     local search_text = search_table.add({type = 'textfield'})
+    search_text.text = player_data.search_text or ''
     search_text.style.width = 140
+    local btn =
+        search_table.add {
+        type = 'sprite-button',
+        tooltip = '[color=blue]Info![/color]\nSearching does not filter the amount of pages shown.\nThis is a limitation in the Factorio engine.\nIterating over the whole table would lag the game.\nSo when searching, you will still see the same amount of pages.\nAnd the results will be "janky".',
+        sprite = 'utility/questionmark'
+    }
+    btn.style.height = 20
+    btn.style.width = 20
+    btn.enabled = false
+    btn.focus()
 
     local bottomLine2 = frame.add({type = 'label', caption = '----------------------------------------------'})
     bottomLine2.style.font = 'default-listbox'
     bottomLine2.style.font_color = {r = 0.98, g = 0.66, b = 0.22}
 
     local selected_index_2 = 1
-    if global.admin_panel_selected_history_index then
-        if global.admin_panel_selected_history_index[player.name] then
-            selected_index_2 = global.admin_panel_selected_history_index[player.name]
-        end
+    if player_data and player_data.selected_history_index then
+        selected_index_2 = player_data.selected_history_index
     end
 
-    local drop_down_2 = frame.add({type = 'drop-down', name = 'admin_history_select', items = histories, selected_index = selected_index_2})
+    local pagination_table = frame.add({type = 'table', column_count = 2, name = 'pagination_table'})
+
+    local drop_down_2 = pagination_table.add({type = 'drop-down', name = 'admin_history_select', items = histories, selected_index = selected_index_2})
     drop_down_2.style.right_padding = 12
     drop_down_2.style.left_padding = 12
 
-    local datas = {
-        frame = frame,
-        antigrief = antigrief
+    local history_index = {
+        ['Capsule History'] = antigrief.capsule_history,
+        ['Message History'] = antigrief.message_history,
+        ['Friendly Fire History'] = antigrief.friendly_fire_history,
+        ['Mining History'] = antigrief.mining_history,
+        ['Mining Override History'] = antigrief.whitelist_mining_history,
+        ['Landfill History'] = antigrief.landfill_history,
+        ['Corpse Looting History'] = antigrief.corpse_history,
+        ['Cancel Crafting History'] = antigrief.cancel_crafting_history,
+        ['Deconstruct History'] = antigrief.deconstruct_history,
+        ['Scenario History'] = antigrief.scenario_history
     }
 
-    draw_events(datas)
+    local history = frame.pagination_table.admin_history_select.items[frame.pagination_table.admin_history_select.selected_index]
+
+    create_pagination_buttons(player_data, pagination_table, #history_index[history])
+
+    player_data.frame = frame
+
+    draw_events(player_data)
 end
 
 local create_admin_panel_token = Token.register(create_admin_panel)
@@ -865,15 +1112,19 @@ local function on_gui_click(event)
     create_mini_camera_gui(player, element.caption, position, surface)
 end
 
+local function on_gui_closed(event)
+    local player = game.get_player(event.player_index)
+
+    get_player_data(player, true)
+end
+
 local function on_gui_selection_state_changed(event)
     local player = game.get_player(event.player_index)
     local name = event.element.name
 
     if name == 'admin_history_select' then
-        if not global.admin_panel_selected_history_index then
-            global.admin_panel_selected_history_index = {}
-        end
-        global.admin_panel_selected_history_index[player.name] = event.element.selected_index
+        local player_data = get_player_data(player)
+        player_data.selected_history_index = event.element.selected_index
 
         local frame = Gui.get_player_active_frame(player)
         if not frame then
@@ -883,6 +1134,10 @@ local function on_gui_selection_state_changed(event)
             return
         end
 
+        Task.set_timeout_in_ticks(5, delayed_last_page_token, {player_index = player.index, element = frame})
+
+        player_data.current_page = 1
+
         local is_spamming = SpamProtection.is_spamming(player, nil, 'Admin Selection Changed')
         if is_spamming then
             return
@@ -891,10 +1146,8 @@ local function on_gui_selection_state_changed(event)
         create_admin_panel(data)
     end
     if name == 'admin_player_select' then
-        if not global.admin_panel_selected_player_index then
-            global.admin_panel_selected_player_index = {}
-        end
-        global.admin_panel_selected_player_index[player.name] = event.element.selected_index
+        local player_data = get_player_data(player)
+        player_data.filter_player = event.element.selected_index
 
         local frame = Gui.get_player_active_frame(player)
         if not frame then
@@ -924,7 +1177,7 @@ Gui.on_click(
     end
 )
 
-function Public.contains_text(history, search_text, target_player_name, callback)
+function Public.contains_text(history, search_text, target_player_name)
     local antigrief = AntiGrief.get()
     local history_index = {
         ['Capsule History'] = antigrief.capsule_history,
@@ -939,10 +1192,9 @@ function Public.contains_text(history, search_text, target_player_name, callback
         ['Scenario History'] = antigrief.scenario_history
     }
 
-    local tooltip = 'Click to open mini camera.'
     local remote_tbl = {}
 
-    if game.players[target_player_name] then
+    if target_player_name and string.len(target_player_name) > 0 and game.get_player(target_player_name) ~= nil then
         if not history_index or not history_index[history] or #history_index[history] <= 0 then
             return
         end
@@ -956,16 +1208,7 @@ function Public.contains_text(history, search_text, target_player_name, callback
                     end
                 end
 
-                if callback then
-                    if history == 'Message History' then
-                        tooltip = ''
-                    end
-
-                    callback(history_index[history][i], tooltip)
-                else
-                    local str = history_index[history][i]:gsub('%[color=yellow]', ''):gsub('%[/color]', '')
-                    remote_tbl[#remote_tbl + 1] = str
-                end
+                remote_tbl[#remote_tbl + 1] = history_index[history][i]
 
                 ::continue::
             end
@@ -979,24 +1222,146 @@ function Public.contains_text(history, search_text, target_player_name, callback
                 end
             end
 
-            if callback then
-                callback(history_index[history][i], tooltip)
-            else
-                local str = history_index[history][i]:gsub('%[color=yellow]', ''):gsub('%[/color]', '')
-                remote_tbl[#remote_tbl + 1] = str
-            end
+            remote_tbl[#remote_tbl + 1] = history_index[history][i]
 
             ::continue::
         end
     end
 
-    if not callback then
-        return remote_tbl
-    end
+    return remote_tbl
 end
+
+Gui.on_click(
+    prev_button_name,
+    function(event)
+        local is_spamming = SpamProtection.is_spamming(event.player, nil, 'Prev button click')
+        if is_spamming then
+            return
+        end
+        local player = event.player
+        if not player or not player.valid or not player.character then
+            return
+        end
+
+        local player_data = get_player_data(player)
+
+        local element = event.element
+        if not element or not element.valid then
+            return
+        end
+
+        local last_page = ceil(player_data.table_count / rows_per_page)
+
+        if not player_data.current_page then
+            player_data.current_page = last_page
+        end
+
+        local current_page = player_data.current_page
+
+        if current_page == 1 then
+            current_page = 1
+            player_data.current_page = current_page
+            player.print('[Admin] There are no more pages beyond this point.', Color.warning)
+            return
+        end
+
+        local shift = event.shift
+        if shift then
+            current_page = 1
+        else
+            current_page = max(1, current_page - 1)
+        end
+
+        player_data.current_page = current_page
+
+        local data = {player = player, frame = element.parent.parent.parent}
+        create_admin_panel(data)
+    end
+)
+
+Gui.on_click(
+    next_button_name,
+    function(event)
+        local is_spamming = SpamProtection.is_spamming(event.player, nil, 'Next button click')
+        if is_spamming then
+            return
+        end
+
+        local element = event.element
+        if not element or not element.valid then
+            return
+        end
+
+        local player = event.player
+        if not player or not player.valid then
+            return
+        end
+
+        local player_data = get_player_data(player)
+
+        local table_count = player_data.table_count
+        if not table_count then
+            return
+        end
+
+        local last_page = ceil(table_count / rows_per_page)
+        if not player_data.current_page then
+            player_data.current_page = last_page
+        end
+
+        local current_page = player_data.current_page
+
+        if current_page == last_page then
+            current_page = last_page
+            player_data.current_page = current_page
+            player.print('[Admin] There are no more pages beyond this point.', Color.warning)
+            return
+        end
+
+        local shift = event.shift
+        if shift then
+            current_page = last_page
+        else
+            current_page = min(last_page, current_page + 1)
+        end
+
+        player_data.current_page = current_page
+
+        local data = {player = player, frame = element.parent.parent.parent}
+        create_admin_panel(data)
+    end
+)
+
+Gui.on_checked_state_changed(
+    listable_players_name,
+    function(event)
+        local is_spamming = SpamProtection.is_spamming(event.player, nil, 'Listable players click')
+        if is_spamming then
+            return
+        end
+
+        local player = event.player
+        if not player or not player.valid then
+            return
+        end
+
+        local player_data = get_player_data(player)
+
+        local element = event.element
+        if not element or not element.valid then
+            return
+        end
+
+        player_data.show_all_players = element.state
+
+        local data = {player = player, frame = element.parent}
+        create_admin_panel(data)
+    end
+)
 
 Event.add(defines.events.on_gui_text_changed, text_changed)
 Event.add(defines.events.on_gui_click, on_gui_click)
 Event.add(defines.events.on_gui_selection_state_changed, on_gui_selection_state_changed)
+Event.add(Gui.events.on_gui_closed_main_frame, on_gui_closed)
 
 return Public

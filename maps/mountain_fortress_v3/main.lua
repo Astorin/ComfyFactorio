@@ -114,9 +114,11 @@ local announce_new_map =
 )
 
 function Public.reset_map()
+    game.forces.player.reset()
     local this = Public.get()
     local wave_defense_table = WD.get_table()
     Misc.reset()
+    Misc.bottom_button(true)
 
     LinkedChests.reset()
 
@@ -183,9 +185,9 @@ function Public.reset_map()
     AntiGrief.enable_capsule_cursor_warning(false)
     AntiGrief.enable_jail(true)
     AntiGrief.damage_entity_threshold(20)
-    AntiGrief.explosive_threshold(32)
     AntiGrief.decon_surface_blacklist(surface.name)
     AntiGrief.filtered_types_on_decon({'tree', 'simple-entity', 'fish'})
+    AntiGrief.set_limit_per_table(0)
 
     PL.show_roles_in_list(true)
     PL.rpg_enabled(true)
