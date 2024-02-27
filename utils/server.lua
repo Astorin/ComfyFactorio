@@ -96,6 +96,7 @@ local unbanned_sync_tag = '[UNBANNED-SYNC]'
 local query_players_tag = '[QUERY-PLAYERS]'
 local player_join_tag = '[PLAYER-JOIN]'
 local player_leave_tag = '[PLAYER-LEAVE]'
+local antigrief_tag = '[ANTIGRIEF-LOG]'
 
 Public.raw_print = raw_print
 
@@ -689,6 +690,14 @@ local function send_try_get_data_and_print(data_set, key, to_print, callback_tok
     output_data(message)
 end
 
+local function log_antigrief_data(category, action)
+    category = double_escape(category)
+    action = double_escape(action)
+
+    local message = concat {antigrief_tag, '{', 'category:"', category, '",action:"', action, '"}'}
+    output_data(message)
+end
+
 local cancelable_callback_token =
     Token.register(
     function(data)
@@ -1031,6 +1040,9 @@ Public.raise_data_set = data_set_changed
 --- Called by the web server to notify the client that the subscribed scenario has changed.
 Public.raise_scenario_changed = scenario_changed
 
+-- Tracks antigrief and sends them to a specific log channel.
+Public.log_antigrief_data = log_antigrief_data
+
 --- Called by the web server to determine which data_sets are being tracked.
 function Public.get_tracked_data_sets()
     local message = {data_tracked_tag, '['}
@@ -1136,7 +1148,7 @@ end
 -- This is the current server's name, in the case the save has been loaded on multiple servers.
 -- @return string
 function Public.get_server_name()
-    return start_data.server_name or ''
+    return start_data.server_name or nil
 end
 
 --- Gets the server's name and matches it against a string.
@@ -1432,9 +1444,6 @@ function Public.ban_handler(event)
         return
     end
 
-    local reason
-    local str = ''
-
     local t = {}
     for i in gmatch(user, '%S+') do
         insert(t, i)
@@ -1442,62 +1451,12 @@ function Public.ban_handler(event)
 
     local target = t[1]
 
-    for i = 2, #t do
-        str = str .. t[i] .. ' '
-        reason = str
-    end
-
     if not target then
         return print('[on_console_command] - target was undefined.')
     end
 
-    if event.player_index then
-        local player = game.get_player(event.player_index)
-        if player and player.valid and player.admin then
-            local data = Public.build_embed_data()
-            data.username = target
-            data.admin = player.name
-
-            if cmd == 'ban' then
-                Public.set_data(jailed_data_set, target, nil) -- this is added here since we don't want to clutter the jail dataset.
-                if not reason then
-                    data.reason = 'Not specified.'
-                    Public.to_banned_embed(data)
-                    return
-                else
-                    data.reason = reason
-                    Public.to_banned_embed(data)
-                    return
-                end
-            elseif cmd == 'unban' then
-                Public.to_unbanned_embed(data)
-                return
-            end
-        end
-    else
-        local data = Public.build_embed_data()
-        data.username = target
-        data.admin = '<server>'
-
-        if event.user_override then
-            data.admin = event.user_override
-        end
-
-        if cmd == 'ban' then
-            Public.set_data(jailed_data_set, target, nil) -- this is added here since we don't want to clutter the jail dataset.
-            if not reason then
-                data.reason = 'Not specified.'
-                Public.to_banned_embed(data)
-                return
-            else
-                data.reason = reason
-                Public.to_banned_embed(data)
-                return
-            end
-        elseif cmd == 'unban' then
-            Public.to_unbanned_embed(data)
-            return
-        end
+    if cmd == 'ban' then
+        Public.set_data(jailed_data_set, target, nil) -- this is added here since we don't want to clutter the jail dataset.
     end
 end
 
