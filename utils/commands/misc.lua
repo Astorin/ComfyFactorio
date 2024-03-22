@@ -369,7 +369,7 @@ local function clear_corpses(cmd)
     if i == 0 then
         player.print('[color=blue][Cleaner][/color] No corpses to clear!', Color.warning)
     else
-        player.print('[color=blue][Cleaner][/color] Cleared ' .. i .. ' ' .. corpses .. '!', Color.success)
+        player.print('[color=blue][Cleaner][/color] Cleared ' .. i .. ' ' .. corpse .. '!', Color.success)
     end
 end
 
