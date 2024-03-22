@@ -321,7 +321,7 @@ local function clear_corpses(cmd)
     local param
     if cmd and cmd.player then
         player = cmd.player
-        param = 50
+        param = 100
     elseif cmd then
         player = game.player
         param = tonumber(cmd.parameter)
@@ -369,7 +369,7 @@ local function clear_corpses(cmd)
     if i == 0 then
         player.print('[color=blue][Cleaner][/color] No corpses to clear!', Color.warning)
     else
-        player.print('[color=blue][Cleaner][/color] Cleared ' .. i .. ' ' .. corpse .. '!', Color.success)
+        player.print('[color=blue][Cleaner][/color] Cleared ' .. i .. ' ' .. corpses .. '!', Color.success)
     end
 end
 
