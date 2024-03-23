@@ -321,7 +321,7 @@ local function clear_corpses(cmd)
     local param
     if cmd and cmd.player then
         player = cmd.player
-        param = 100
+        param = 50
     elseif cmd then
         player = game.player
         param = tonumber(cmd.parameter)
