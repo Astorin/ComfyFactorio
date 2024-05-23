@@ -7,6 +7,7 @@ local Alert = require 'utils.alert'
 local Task = require 'utils.task_token'
 local Color = require 'utils.color_presets'
 local ICF = require 'maps.mountain_fortress_v3.ic.functions'
+local Session = require 'utils.datastore.session_data'
 
 local floor = math.floor
 local abs = math.abs
@@ -118,18 +119,23 @@ local artillery_warning =
     end
 )
 
-local breach_wall_warning_teleport = function(player)
+local breach_wall_warning_teleport = function(player, check_trusted)
     if not player or not player.valid then
         return
     end
 
     local wave_number = WD.get('wave_number')
     if wave_number >= 200 then
-        return
+        return false
     end
 
-    local message = ({'breached_wall.warning_teleport', player.name})
-    Alert.alert_all_players(40, message)
+    if not check_trusted then
+        local message = ({'breached_wall.warning_teleport', player.name})
+        Alert.alert_all_players(40, message)
+    else
+        local message = ({'breached_wall.warning_not_trusted_teleport', player.name})
+        Alert.alert_all_players(40, message)
+    end
     local pos = player.surface.find_non_colliding_position('character', player.force.get_spawn_position(player.surface), 3, 0)
     if pos then
         player.teleport(pos, player.surface)
@@ -137,6 +143,7 @@ local breach_wall_warning_teleport = function(player)
         pos = game.forces.player.get_spawn_position(player.surface)
         player.teleport(pos, player.surface)
     end
+    return true
 end
 
 local spidertron_too_far =
@@ -156,41 +163,28 @@ local check_distance_between_player_and_locomotive = function(player)
         return
     end
 
-    local breached_wall = Public.get('breached_wall')
-
-    if breached_wall < 3 then
-        return
-    end
-
-    local collapse_position = Collapse.get_position()
+    -- local collapse_position = Collapse.get_position()
     local adjusted_zones = Public.get('adjusted_zones')
 
     local gap_between_locomotive = Public.get('gap_between_locomotive')
     gap_between_locomotive.highest_pos = locomotive.position
     gap_between_locomotive = Public.get('gap_between_locomotive')
 
-    local p_y = position.y
-    local t_y = gap_between_locomotive.highest_pos.y
-    local c_y = collapse_position.y
-
-    local locomotive_distance
-    local collapse_distance
-
-    if adjusted_zones.reversed then
-        locomotive_distance = p_y - t_y >= gap_between_locomotive.neg_gap
-        collapse_distance = p_y - c_y >= gap_between_locomotive.neg_gap_collapse
-    else
-        locomotive_distance = p_y - t_y <= gap_between_locomotive.neg_gap
-        collapse_distance = p_y - c_y <= gap_between_locomotive.neg_gap_collapse
+    local p_y = abs(position.y)
+    if p_y < 300 then
+        return
     end
+    local t_y = abs(gap_between_locomotive.highest_pos.y)
+    -- local c_y = abs(collapse_position.y)
 
-    if locomotive_distance then
-        local source = {position.x, locomotive.position.y + gap_between_locomotive.neg_gap + 4}
-        local source_position = surface.find_non_colliding_position('character', source, 32, 1)
-        if source_position then
-            player.teleport(source_position, surface)
+    local locomotive_distance_too_far = p_y - t_y > gap_between_locomotive.neg_gap
+    -- local collapse_distance_too_far = p_y - c_y > gap_between_locomotive.neg_gap_collapse
+
+    if locomotive_distance_too_far then
+        if adjusted_zones.reversed then
+            player.teleport({position.x, t_y + gap_between_locomotive.neg_gap - 4}, surface)
         else
-            player.teleport(source, surface)
+            player.teleport({position.x, (t_y + gap_between_locomotive.neg_gap - 4) * -1}, surface)
         end
 
         player.print(({'breached_wall.hinder'}), Color.warning)
@@ -204,28 +198,24 @@ local check_distance_between_player_and_locomotive = function(player)
                 player.character.die('enemy')
             end
         end
-    end
+    -- elseif collapse_distance_too_far then
+    --     if adjusted_zones.reversed then
+    --         player.teleport({position.x, t_y + gap_between_locomotive.neg_gap_collapse - 4}, surface)
+    --     else
+    --         player.teleport({position.x, (t_y + gap_between_locomotive.neg_gap_collapse - 4) * -1}, surface)
+    --     end
 
-    if collapse_distance then
-        local source = {position.x, c_y + gap_between_locomotive.neg_gap_collapse + 4}
-        local source_position = surface.find_non_colliding_position('character', source, 32, 1)
-        if source_position then
-            player.teleport(source_position, surface)
-        else
-            player.teleport(source, surface)
-        end
-
-        player.print(({'breached_wall.hinder_collapse'}), Color.warning)
-        if player.driving then
-            player.driving = false
-        end
-        if player.character then
-            player.character.health = player.character.health - 5
-            player.character.surface.create_entity({name = 'water-splash', position = position})
-            if player.character.health <= 0 then
-                player.character.die('enemy')
-            end
-        end
+    --     player.print(({'breached_wall.hinder_collapse'}), Color.warning)
+    --     if player.driving then
+    --         player.driving = false
+    --     end
+    --     if player.character then
+    --         player.character.health = player.character.health - 5
+    --         player.character.surface.create_entity({name = 'water-splash', position = position})
+    --         if player.character.health <= 0 then
+    --             player.character.die('enemy')
+    --         end
+    --     end
     end
 end
 
@@ -282,24 +272,13 @@ local compare_player_and_train = function(player, entity)
     gap_between_zones.highest_pos = locomotive.position
     gap_between_zones = Public.get('gap_between_zones')
 
-    local c_y = position.y
-    local t_y = gap_between_zones.highest_pos.y
+    local c_y = abs(position.y)
+    local t_y = abs(gap_between_zones.highest_pos.y)
+
     local spidertron_warning_position = gap_between_zones.neg_gap + 50
+    local locomotive_distance_too_far = c_y - t_y > spidertron_warning_position
 
-    local adjusted_zones = Public.get('adjusted_zones')
-
-    local locomotive_distance
-    local collapse_distance
-
-    if adjusted_zones.reversed then
-        locomotive_distance = c_y - t_y >= spidertron_warning_position
-        collapse_distance = c_y - t_y >= gap_between_zones.neg_gap
-    else
-        locomotive_distance = c_y - t_y <= spidertron_warning_position
-        collapse_distance = c_y - t_y <= gap_between_zones.neg_gap
-    end
-
-    if locomotive_distance then
+    if locomotive_distance_too_far then
         local surface = player.surface
         surface.create_entity(
             {
@@ -309,9 +288,6 @@ local compare_player_and_train = function(player, entity)
                 color = {r = 0.9, g = 0.0, b = 0.0}
             }
         )
-    end
-
-    if collapse_distance then
         if entity.health then
             if car and car.health_pool and car.health_pool.health then
                 car.health_pool.health = car.health_pool.health - 500
@@ -349,25 +325,31 @@ local function distance(player)
     compare_player_pos(player)
 
     local distance_to_center = floor(sqrt(p.y ^ 2))
-    local location = distance_to_center
     local adjusted_zones = Public.get('adjusted_zones')
     if adjusted_zones.reversed then
-        if location < zone_settings.zone_depth * bonus + 30 then
+        if distance_to_center < zone_settings.zone_depth * bonus + 32 then
             return
         end
     else
-        if location < zone_settings.zone_depth * bonus - 10 then
+        if distance_to_center < zone_settings.zone_depth * bonus - 10 then
             return
         end
     end
 
     local breach_wall_warning = Public.get('breach_wall_warning')
+    local collapse_started = Public.get('collapse_started')
+    local block_non_trusted_trigger_collapse = Public.get('block_non_trusted_trigger_collapse')
 
     local max = zone_settings.zone_depth * bonus
     local breach_max = zone_settings.zone_depth * breached_wall
-    local breach_max_times = location >= breach_max
-    local max_times = location >= max
+    local breach_max_times = distance_to_center >= breach_max
+    local max_times = distance_to_center >= max
     if max_times then
+        if block_non_trusted_trigger_collapse and not Session.get_trusted_player(player) and not collapse_started then
+            if breach_wall_warning_teleport(player, true) then
+                return
+            end
+        end
         if not breach_wall_warning then
             Public.set('breach_wall_warning', true)
             breach_wall_warning_teleport(player)
@@ -424,6 +406,7 @@ local function distance(player)
 
         if not Collapse.get_start_now() then
             clear_breach_text_and_render()
+            Public.set('collapse_started', true)
             Collapse.start_now(true)
             local data = {
                 position = Collapse.get_position()

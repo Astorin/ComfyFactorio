@@ -1,6 +1,8 @@
 -- one table to rule them all!
 local Global = require 'utils.global'
+local Server = require 'utils.server'
 local Event = require 'utils.event'
+local Task = require 'utils.task_token'
 
 local this = {
     players = {},
@@ -12,11 +14,15 @@ local this = {
         next_operation = nil
     }
 }
+
 local stateful_settings = {
     reversed = true
 }
 local Public = {}
 local random = math.random
+local dataset = 'scenario_settings'
+local dataset_key = 'mtn_v3_table'
+local dataset_key_dev = 'mtn_v3_table_dev'
 
 Public.events = {
     reset_map = Event.generate_event_name('reset_map'),
@@ -118,25 +124,27 @@ function Public.reset_main_table()
     this.restart = false
     this.shutdown = false
     this.announced_message = false
+    this.game_reset_tick = nil
     -- @end
     this.breach_wall_warning = false
     this.icw_locomotive = nil
     this.game_lost = false
     this.death_mode = false
+    this.collapse_started = false
     this.locomotive_health = 10000
     this.locomotive_max_health = 10000
     this.extra_wagons = 0
     this.gap_between_zones = {
         set = false,
         gap = 900,
-        neg_gap = -500,
+        neg_gap = 500,
         highest_pos = 0
     }
     this.gap_between_locomotive = {
         hinders = {},
         gap = 900,
-        neg_gap = -3520, -- earlier 2112 (3 zones, whereas 704 is one zone)
-        neg_gap_collapse = -5520, -- earlier 2112 (3 zones, whereas 704 is one zone)
+        neg_gap = 3520, -- earlier 2112 (3 zones, whereas 704 is one zone)
+        neg_gap_collapse = 5520, -- earlier 2112 (3 zones, whereas 704 is one zone)
         highest_pos = nil
     }
     this.force_chunk = false
@@ -149,6 +157,7 @@ function Public.reset_main_table()
     }
     this.allow_decon = true
     this.block_non_trusted_opening_trains = true
+    this.block_non_trusted_trigger_collapse = true
     this.allow_decon_main_surface = true
     this.flamethrower_damage = {}
     this.mined_scrap = 0
@@ -288,6 +297,7 @@ function Public.reset_main_table()
         current = {},
         temp_boosts = {}
     }
+
     this.adjusted_zones = {
         scrap = {},
         forest = {},
@@ -348,12 +358,8 @@ end
 function Public.set_stateful_settings(key, value)
     if key and (value or value == false) then
         stateful_settings[key] = value
-        return stateful_settings[key]
-    elseif key then
-        return stateful_settings[key]
-    else
-        return stateful_settings
     end
+    Public.save_stateful_settings()
 end
 
 function Public.remove(key, sub_key)
@@ -368,6 +374,54 @@ function Public.remove(key, sub_key)
     end
 end
 
-Event.on_init(Public.reset_main_table)
+function Public.save_stateful_settings()
+    local server_name_matches = Server.check_server_name('Mtn Fortress')
+
+    if server_name_matches then
+        Server.set_data(dataset, dataset_key, stateful_settings)
+    else
+        Server.set_data(dataset, dataset_key_dev, stateful_settings)
+    end
+end
+
+local apply_settings_token =
+    Task.register(
+    function(data)
+        local server_name_matches = Server.check_server_name('Mtn Fortress')
+        local settings = data and data.value or nil
+
+        if not settings then
+            if server_name_matches then
+                Server.set_data(dataset, dataset_key, stateful_settings)
+            else
+                Server.set_data(dataset, dataset_key_dev, stateful_settings)
+            end
+        else
+            for k, v in pairs(settings) do
+                stateful_settings[k] = v
+            end
+        end
+
+        Public.stateful_on_server_started()
+    end
+)
+
+Event.add(
+    Server.events.on_server_started,
+    function()
+        local start_data = Server.get_start_data()
+
+        if not start_data.initialized then
+            local server_name_matches = Server.check_server_name('Mtn Fortress')
+
+            if server_name_matches then
+                Server.try_get_data(dataset, dataset_key, apply_settings_token)
+            else
+                Server.try_get_data(dataset, dataset_key_dev, apply_settings_token)
+            end
+            start_data.initialized = true
+        end
+    end
+)
 
 return Public

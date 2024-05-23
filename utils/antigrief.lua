@@ -36,6 +36,7 @@ local this = {
     cancel_crafting_history = {},
     deconstruct_history = {},
     scenario_history = {},
+    whisper_history = {},
     whitelist_types = {},
     permission_group_editing = {},
     players_warned = {},
@@ -45,7 +46,7 @@ local this = {
     enable_autokick = false,
     enable_autoban = false,
     enable_jail = true,
-    enable_capsule_warning = true,
+    enable_capsule_warning = false,
     enable_capsule_cursor_warning = true,
     required_playtime = 2592000,
     capsule_bomb_threshold = 8,
@@ -708,6 +709,56 @@ local function on_pre_player_mined_item(event)
     end
 end
 
+local function on_console_command(event)
+    if not event.player_index then
+        return
+    end
+
+    local valid_commands = {
+        ['r'] = true,
+        ['whisper'] = true
+    }
+
+    if not valid_commands[event.command] then
+        return
+    end
+
+    local player = game.get_player(event.player_index)
+
+    if not this.whisper_history then
+        this.whisper_history = {}
+    end
+    if this.limit > 0 and #this.whisper_history > this.limit then
+        overflow(this.whisper_history)
+    end
+
+    local parameters = event.parameters
+
+    local name, message = parameters:match('(%a+)%s(.*)')
+    if not message and event.command == 'whisper' then
+        return
+    end
+
+    local chat_message
+
+    if event.command == 'r' then
+        chat_message = ' replied: "' .. parameters .. '"'
+    else
+        chat_message = ' whispered: "' .. name .. ' ' .. message .. '"'
+    end
+
+    if chat_message:len() == 0 then
+        return
+    end
+
+    local t = abs(floor((game.tick) / 60))
+    local formatted = FancyTime.short_fancy_time(t)
+    local str = '[' .. formatted .. '] '
+    str = str .. player.name .. chat_message
+    increment(this.whisper_history, str)
+    Server.log_antigrief_data('whisper', str)
+end
+
 local function on_console_chat(event)
     if not event.player_index then
         return
@@ -1322,6 +1373,7 @@ Event.add(de.on_permission_group_added, on_permission_group_added)
 Event.add(de.on_permission_group_deleted, on_permission_group_deleted)
 Event.add(de.on_permission_group_edited, on_permission_group_edited)
 Event.add(de.on_permission_string_imported, on_permission_string_imported)
+Event.add(de.on_console_command, on_console_command)
 Event.add(de.on_console_chat, on_console_chat)
 Event.add(de.on_player_muted, on_player_muted)
 Event.add(de.on_player_unmuted, on_player_unmuted)

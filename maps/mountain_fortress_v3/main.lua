@@ -165,7 +165,6 @@ function Public.reset_map()
     JailData.reset_vote_table()
 
     Explosives.set_surface_whitelist({[surface.name] = true})
-    Explosives.check_growth_below_void(true)
 
     Beam.reset_valid_targets()
 
@@ -219,7 +218,7 @@ function Public.reset_map()
     Collapse.set_speed(8)
     Collapse.set_amount(1)
     -- Collapse.set_max_line_size(zone_settings.zone_width)
-    Collapse.set_max_line_size(540)
+    Collapse.set_max_line_size(540, true)
     Collapse.set_surface_index(surface.index)
 
     Collapse.start_now(false)
@@ -229,15 +228,13 @@ function Public.reset_map()
     this.locomotive_max_health = 10000
 
     if this.adjusted_zones.reversed then
-        this.gap_between_locomotive.neg_gap = abs(this.gap_between_locomotive.neg_gap)
-        this.gap_between_locomotive.neg_gap_collapse = abs(this.gap_between_locomotive.neg_gap_collapse)
+        Explosives.check_growth_below_void(false)
         this.spawn_near_collapse.compare = abs(this.spawn_near_collapse.compare)
         Collapse.set_position({0, -130})
         Collapse.set_direction('south')
         Public.locomotive_spawn(surface, {x = -18, y = -25}, this.adjusted_zones.reversed)
     else
-        this.gap_between_locomotive.neg_gap = abs(this.gap_between_locomotive.neg_gap) * -1
-        this.gap_between_locomotive.neg_gap_collapse = abs(this.gap_between_locomotive.neg_gap_collapse) * -1
+        Explosives.check_growth_below_void(true)
         this.spawn_near_collapse.compare = abs(this.spawn_near_collapse.compare) * -1
         Collapse.set_position({0, 130})
         Collapse.set_direction('north')
@@ -277,12 +274,16 @@ function Public.reset_map()
             surface.force_generate_chunk_requests()
         end
         game.forces.player.set_spawn_position({x = -27, y = -25}, surface)
+        WD.set_spawn_position({x = -16, y = -80})
+        WD.enable_inverted(true)
     else
         if not surface.is_chunk_generated({x = -20, y = 22}) then
             surface.request_to_generate_chunks({x = -20, y = 22}, 0.1)
             surface.force_generate_chunk_requests()
         end
         game.forces.player.set_spawn_position({x = -27, y = 25}, surface)
+        WD.set_spawn_position({x = -16, y = 80})
+        WD.enable_inverted(false)
     end
 
     game.speed = 1
@@ -362,7 +363,7 @@ local has_the_game_ended = function()
         local this = Public.get()
 
         this.game_reset_tick = this.game_reset_tick - 30
-        if this.game_reset_tick % 1800 == 0 then
+        if this.game_reset_tick % 600 == 0 then
             if this.game_reset_tick > 0 then
                 local cause_msg
                 if this.restart then
@@ -468,12 +469,14 @@ local compare_collapse_and_train = function()
         return
     end
 
-    local c_y = collapse_pos.y
-    local t_y = locomotive.position.y
+    local c_y = abs(collapse_pos.y)
+    local t_y = abs(locomotive.position.y)
+    local result = abs(c_y - t_y)
 
     local gap_between_zones = Public.get('gap_between_zones')
 
-    if c_y - t_y <= gap_between_zones.gap then
+    local distance = result > gap_between_zones.gap
+    if not distance then
         Public.set_difficulty()
     else
         Collapse.set_speed(1)
@@ -539,7 +542,7 @@ local nth_1000_tick = function()
     Public.is_creativity_mode_on()
 end
 
-local on_init = function()
+function Public.init_mtn()
     Public.reset_map()
 
     local tooltip = {
@@ -584,6 +587,16 @@ Server.on_scenario_changed(
 Event.on_nth_tick(40, nth_40_tick)
 Event.on_nth_tick(250, nth_250_tick)
 Event.on_nth_tick(1000, nth_1000_tick)
-Event.on_init(on_init)
+
+Event.add(
+    defines.events.on_player_created,
+    function(event)
+        if event.player_index == 1 then
+            if not game.is_multiplayer() then
+                Public.init_mtn()
+            end
+        end
+    end
+)
 
 return Public

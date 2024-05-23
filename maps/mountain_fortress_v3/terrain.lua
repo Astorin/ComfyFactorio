@@ -364,12 +364,20 @@ local function get_oil_amount(p)
 end
 
 local function spawn_turret(entities, p, probability)
+    local direction
+    local adjusted_zones = Public.get('adjusted_zones')
+    if adjusted_zones.reversed then
+        direction = defines.direction.north
+    else
+        direction = defines.direction.south
+    end
+
     entities[#entities + 1] = {
         name = turret_list[probability].name,
         position = p,
         force = 'enemy',
         callback = turret_list[probability].callback,
-        direction = 4,
+        direction = direction,
         collision = true,
         note = true
     }
@@ -2765,8 +2773,15 @@ local function process_bits(p, data, adjusted_zones)
 
     shuffle_terrains(adjusted_zones, index)
 
+    local depth
+    if adjusted_zones.reversed then
+        depth = left_top_y <= zone_settings.zone_depth
+    else
+        depth = left_top_y >= -zone_settings.zone_depth
+    end
+
     local generate_zone
-    if adjusted_zones.starting_zone and left_top_y >= -zone_settings.zone_depth then
+    if adjusted_zones.starting_zone and depth then
         generate_zone = starting_zone
     else
         generate_zone = zones[adjusted_zones.shuffled_zones[index]].fn
@@ -2797,16 +2812,32 @@ local function border_chunk(p, data)
     local entities = data.entities
     local decoratives = data.decoratives
     local tiles = data.tiles
+    local surface = data.surface
 
     local pos = p
+
+    if data.reversed then
+        if p.y < -74 then
+            return
+        end
+    else
+        if p.y > 74 then
+            return
+        end
+    end
 
     if random(1, ceil(abs(pos.y) + abs(pos.y)) + 64) == 1 then
         entities[#entities + 1] = {name = trees[random(1, #trees)], position = pos}
     end
 
+    game.forces.player.chart(surface, {{p.x - 32, p.y - 32}, {p.x + 32, p.y + 32}})
+
     local noise = Public.get_noise('dungeon_sewer', pos, data.seed)
     local index = floor(noise * 32) % 11 + 1
-    tiles[#tiles + 1] = {name = start_ground_tiles[index], position = pos}
+    local tile = surface.get_tile(pos)
+    if tile and tile.valid and tile.name ~= 'black-refined-concrete' then
+        tiles[#tiles + 1] = {name = start_ground_tiles[index], position = pos}
+    end
 
     local scrap_mineable_entities, scrap_mineable_entities_index = get_scrap_mineable_entities()
 
@@ -2850,6 +2881,8 @@ local function biter_chunk(p, data)
         callback = Public.active_not_destructible_callback
     }
 
+    game.forces.player.chart(surface, {{p.x - 32, p.y - 32}, {p.x + 32, p.y + 32}})
+
     if random(1, 128) == 1 then
         local position = surface.find_non_colliding_position('biter-spawner', tile_positions[random(1, #tile_positions)], 16, 2)
         if position then
@@ -2888,20 +2921,22 @@ function Public.heavy_functions(data)
     if string.sub(surface.name, 0, #map_name) ~= map_name then
         return
     end
+    local adjusted_zones = Public.get('adjusted_zones')
+    data.reversed = adjusted_zones.reversed
 
     local p = data.position
 
-    local adjusted_zones = Public.get('adjusted_zones')
     if adjusted_zones.disable_terrain then
         return
     end
+
     init_terrain(adjusted_zones)
 
     if not data.seed then
         data.seed = Public.get('random_seed')
     end
 
-    if adjusted_zones.reversed then
+    if data.reversed then
         if top_y % zone_settings.zone_depth == 0 and top_y > 0 then
             Public.set('left_top', data.left_top)
             return wall(p, data)

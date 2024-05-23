@@ -1,13 +1,19 @@
 local Public = require 'maps.mountain_fortress_v3.table'
 local Session = require 'utils.datastore.session_data'
-local Jailed = require 'utils.datastore.jail_data'
 
 local Antigrief = require 'utils.antigrief'
 
 local required_playtime = 5184000 -- 24 hours
 
+local valid_groups = {
+    ['default'] = true,
+    ['limited'] = true,
+    ['main_surface'] = true,
+    ['near_locomotive'] = true,
+    ['not_trusted'] = true
+}
+
 function Public.add_player_to_permission_group(player, group, forced)
-    local jailed = Jailed.get_jailed_table()
     local enable_permission_group_disconnect = Public.get('disconnect_wagon')
     local session = Session.get_session_table()
     local AG = Antigrief.get()
@@ -15,13 +21,17 @@ function Public.add_player_to_permission_group(player, group, forced)
         return
     end
 
-    local allow_decon = Public.get('allow_decon')
-    local allow_decon_main_surface = Public.get('allow_decon_main_surface')
-
     local default_group = game.permissions.get_group('Default')
     if not default_group then
         return
     end
+
+    if not valid_groups[string.lower(player.permission_group.name)] then
+        return
+    end
+
+    local allow_decon = Public.get('allow_decon')
+    local allow_decon_main_surface = Public.get('allow_decon_main_surface')
 
     default_group.set_allows_action(defines.input_action.activate_cut, false)
     if allow_decon_main_surface then
@@ -113,14 +123,6 @@ function Public.add_player_to_permission_group(player, group, forced)
         return
     end
 
-    local gulag = game.permissions.get_group('gulag')
-    local tbl = gulag and gulag.players
-    for i = 1, #tbl do
-        if tbl[i].index == player.index then
-            return
-        end
-    end
-
     if forced then
         default_group.add_player(player)
         return
@@ -131,14 +133,28 @@ function Public.add_player_to_permission_group(player, group, forced)
         playtime = player.online_time + session[player.name]
     end
 
-    if jailed[player.name] then
-        return
+    local limited_group = game.permissions.get_group('limited')
+    local main_surface_group = game.permissions.get_group('main_surface')
+    local near_locomotive_group = game.permissions.get_group('near_locomotive')
+
+    if limited_group then
+        limited_group.set_allows_action(defines.input_action.delete_blueprint_library, false)
+        limited_group.set_allows_action(defines.input_action.delete_blueprint_record, false)
+    end
+    if main_surface_group then
+        main_surface_group.set_allows_action(defines.input_action.delete_blueprint_library, false)
+        main_surface_group.set_allows_action(defines.input_action.delete_blueprint_record, false)
+    end
+    if near_locomotive_group then
+        near_locomotive_group.set_allows_action(defines.input_action.delete_blueprint_library, false)
+        near_locomotive_group.set_allows_action(defines.input_action.delete_blueprint_record, false)
+    end
+    if default_group then
+        default_group.set_allows_action(defines.input_action.delete_blueprint_library, false)
+        default_group.set_allows_action(defines.input_action.delete_blueprint_record, false)
     end
 
     if enable_permission_group_disconnect then
-        local limited_group = game.permissions.get_group('limited')
-        local main_surface_group = game.permissions.get_group('main_surface')
-        local near_locomotive_group = game.permissions.get_group('near_locomotive')
         if limited_group then
             limited_group.set_allows_action(defines.input_action.disconnect_rolling_stock, true)
         end
@@ -152,9 +168,6 @@ function Public.add_player_to_permission_group(player, group, forced)
             default_group.set_allows_action(defines.input_action.disconnect_rolling_stock, true)
         end
     else
-        local limited_group = game.permissions.get_group('limited')
-        local main_surface_group = game.permissions.get_group('main_surface')
-        local near_locomotive_group = game.permissions.get_group('near_locomotive')
         if limited_group then
             limited_group.set_allows_action(defines.input_action.disconnect_rolling_stock, false)
         end
@@ -180,25 +193,25 @@ function Public.add_player_to_permission_group(player, group, forced)
         end
     else
         if group == 'limited' then
-            local limited_group = game.permissions.get_group('limited')
-            if not limited_group then
+            local limited_group_inner = game.permissions.get_group('limited')
+            if not limited_group_inner then
                 return
             end
-            limited_group.add_player(player)
+            limited_group_inner.add_player(player)
         elseif group == 'main_surface' then
-            local main_surface_group = game.permissions.get_group('main_surface')
-            if not main_surface_group then
+            local main_surface_group_inner = game.permissions.get_group('main_surface')
+            if not main_surface_group_inner then
                 return
             end
 
-            main_surface_group.add_player(player)
+            main_surface_group_inner.add_player(player)
         elseif group == 'near_locomotive' then
-            local near_locomotive_group = game.permissions.get_group('near_locomotive')
-            if not near_locomotive_group then
+            local near_locomotive_group_inner = game.permissions.get_group('near_locomotive')
+            if not near_locomotive_group_inner then
                 return
             end
 
-            near_locomotive_group.add_player(player)
+            near_locomotive_group_inner.add_player(player)
         elseif group == 'default' then
             default_group.add_player(player)
         end

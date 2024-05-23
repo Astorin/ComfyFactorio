@@ -989,14 +989,33 @@ local function on_player_repaired_entity(event)
     end
     local entity = event.entity
     local carriages_numbers = Public.get('carriages_numbers')
+    local tick = game.tick
 
     if carriages_numbers[entity.unit_number] then
         local player = game.get_player(event.player_index)
-        local repair_speed = RPG.get_magicka(player)
+        local rpg_t = RPG.get_value_from_player(player.index)
+        local repair_speed
+
+        if not rpg_t.mtn_repair then
+            rpg_t.mtn_repair = 0
+        end
+
+        if rpg_t.mtn_repair > tick then
+            repair_speed = 1
+        else
+            repair_speed = RPG.get_magicka(player)
+        end
+
         if repair_speed <= 1 then
+            if rpg_t.mtn_repair < tick then
+                rpg_t.mtn_repair = tick + 10
+            end
             set_train_final_health(-1, true)
             return
         else
+            if rpg_t.mtn_repair < tick then
+                rpg_t.mtn_repair = tick + 10
+            end
             set_train_final_health(-repair_speed, true)
             return
         end
@@ -1348,6 +1367,10 @@ function Public.loco_died(invalid_locomotive)
     end
 
     local active_surface_index = Public.get('active_surface_index')
+    if not active_surface_index then
+        return
+    end
+
     local locomotive = Public.get('locomotive')
     local surface = game.surfaces[active_surface_index]
     local wave_defense_table = WD.get_table()
@@ -1361,7 +1384,7 @@ function Public.loco_died(invalid_locomotive)
         show_mvps(player)
     end
 
-    if not locomotive.valid then
+    if not locomotive or not locomotive.valid then
         local this = Public.get()
 
         local data = {}
@@ -1442,7 +1465,7 @@ end
 
 local function on_entity_spawned(event)
     local enemy_spawners = Public.get('enemy_spawners')
-    if not enemy_spawners.enabled then
+    if not enemy_spawners or not enemy_spawners.enabled then
         return
     end
 

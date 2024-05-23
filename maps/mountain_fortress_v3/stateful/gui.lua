@@ -674,6 +674,10 @@ local function update_data()
     local players = game.connected_players
     local stateful = Public.get_stateful()
     local breached_wall = Public.get('breached_wall')
+    if not breached_wall then
+        return
+    end
+
     breached_wall = breached_wall - 1
     local wave_number = WD.get('wave_number')
     local collection = stateful.collection
@@ -731,7 +735,7 @@ local function update_data()
                                     frame.sprite = 'utility/check_mark_green'
                                 else
                                     frame.number = supplies_data.count
-                                    frame.tooltip = count .. ' / ' .. supplies_data.total
+                                    frame.tooltip = 'Crafted: ' .. count .. '\nNeeded: ' .. supplies_data.total
                                 end
                                 if items_done == 3 then
                                     if data.supply_completed and data.supply_completed.valid then
@@ -740,7 +744,7 @@ local function update_data()
                                 end
                             else
                                 frame.number = supplies_data.count
-                                frame.tooltip = '0 / ' .. supplies_data.count
+                                frame.tooltip = 'Crafted: 0\nNeeded: ' .. supplies_data.total
                             end
                         end
                     end
@@ -767,10 +771,11 @@ local function update_data()
                         else
                             frame.number = single_item.count
                             frame.tooltip = count .. ' / ' .. single_item.total
+                            frame.tooltip = 'Crafted: ' .. count .. '\nNeeded: ' .. single_item.total
                         end
                     else
                         frame.number = single_item.count
-                        frame.tooltip = '0 / ' .. single_item.count
+                        frame.tooltip = 'Crafted: 0\nNeeded: ' .. single_item.total
                     end
                 end
             end
@@ -846,13 +851,20 @@ end
 
 local function update_raw()
     local game_lost = Public.get('game_lost')
+
     if game_lost then
         clear_all_frames()
         return
     end
 
     local stateful = Public.get_stateful()
+    if not stateful or not stateful.objectives then
+        return
+    end
     local breached_wall = Public.get('breached_wall')
+    if not breached_wall then
+        return
+    end
     local wave_number = WD.get('wave_number')
     local collection = stateful.collection
     local tick = game.tick
@@ -905,6 +917,11 @@ local function update_raw()
                         stateful.objectives_completed_count = stateful.objectives_completed_count + 1
                     end
                 end
+            else
+                if not supplies_data.total then
+                    supplies_data.total = supplies_data.count
+                end
+                supplies_data.count = supplies_data.total
             end
         end
     end
@@ -926,6 +943,12 @@ local function update_raw()
                     stateful.objectives_completed_count = stateful.objectives_completed_count + 1
                 end
             end
+        else
+            if not stateful.objectives.single_item.total then
+                stateful.objectives.single_item.total = stateful.objectives.single_item.count
+            end
+
+            stateful.objectives.single_item.count = stateful.objectives.single_item.total
         end
     end
 
@@ -973,33 +996,57 @@ local function update_raw()
         elseif collection.survive_for and collection.survive_for < 0 then
             collection.survive_for = 0
             if collection.game_won and not collection.game_won_notified then
+                game.print('[color=yellow][Mtn v3][/color] Game won!')
+                collection.game_won = true
+                stateful.collection.time_until_attack = 0
+                stateful.collection.time_until_attack_timer = 0
+                stateful.collection.gather_time = 0
+                stateful.collection.gather_time_timer = 0
+                collection.survive_for = 0
+                collection.survive_for_timer = 0
+                refresh_frames()
+
+                local reversed = Public.get_stateful_settings('reversed')
+                if reversed then
+                    Public.set_stateful_settings('reversed', false)
+                else
+                    Public.set_stateful_settings('reversed', true)
+                end
+
                 collection.game_won_notified = true
                 refresh_boss_frame()
                 play_game_won()
+                WD.disable_spawning_biters(true)
+                Collapse.disable_collapse(true)
+                WD.nuke_wave_gui()
                 Server.to_discord_embed('Game won!')
                 stateful.rounds_survived = stateful.rounds_survived + 1
+                stateful.selected_objectives = nil
                 local buff = Stateful.save_settings()
                 notify_won_to_discord(buff)
                 local locomotive = Public.get('locomotive')
                 if locomotive and locomotive.valid then
                     locomotive.surface.spill_item_stack(locomotive.position, {name = 'coin', count = 512}, false)
-                    Public.set('game_reset_tick', 5400)
                 end
+                Public.set('game_reset_tick', 5400)
+                return
             end
         end
     end
 
-    for objective_index = 1, #stateful.selected_objectives do
-        local objective = stateful.selected_objectives[objective_index]
-        local objective_name = objective.name
-        local callback = Task.get(objective.token)
-        local completed, _, _ = callback()
-        if completed and completed == true and not stateful.objectives_completed[objective_name] then
-            stateful.objectives_completed[objective_name] = true
-            Alert.alert_all_players(10, 'Objective: **' .. objective_name .. '** has been completed!')
-            Server.to_discord_embed('Objective: **' .. objective_name .. '** has been completed!')
-            play_achievement_unlocked()
-            stateful.objectives_completed_count = stateful.objectives_completed_count + 1
+    if stateful.selected_objectives and next(stateful.selected_objectives) then
+        for objective_index = 1, #stateful.selected_objectives do
+            local objective = stateful.selected_objectives[objective_index]
+            local objective_name = objective.name
+            local callback = Task.get(objective.token)
+            local completed, _, _ = callback()
+            if completed and completed == true and not stateful.objectives_completed[objective_name] then
+                stateful.objectives_completed[objective_name] = true
+                Alert.alert_all_players(10, 'Objective: **' .. objective_name .. '** has been completed!')
+                Server.to_discord_embed('Objective: **' .. objective_name .. '** has been completed!')
+                play_achievement_unlocked()
+                stateful.objectives_completed_count = stateful.objectives_completed_count + 1
+            end
         end
     end
 
@@ -1035,6 +1082,7 @@ local function update_raw()
             WD.nuke_wave_gui()
             Server.to_discord_embed('Game won!')
             stateful.rounds_survived = stateful.rounds_survived + 1
+            stateful.selected_objectives = nil
             local buff = Stateful.save_settings()
             notify_won_to_discord(buff)
             local locomotive = Public.get('locomotive')
@@ -1047,6 +1095,7 @@ local function update_raw()
 
         stateful.collection.gather_time = tick + 54000
         stateful.collection.gather_time_timer = tick + 54000
+        game.forces.enemy.evolution_factor = 1
         play_achievement_unlocked()
         WD.disable_spawning_biters(true)
         Collapse.disable_collapse(true)

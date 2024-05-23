@@ -9,6 +9,7 @@ local Gui = require 'utils.gui'
 local Alert = require 'utils.alert'
 local Color = require 'utils.color_presets'
 local Modifiers = require 'utils.player_modifiers'
+local Core = require 'utils.core'
 
 local zone_settings = Public.zone_settings
 
@@ -159,71 +160,67 @@ local function hurt_players_outside_of_aura()
 
     local upgrades = Public.get('upgrades')
 
-    local players = game.connected_players
-    for i = 1, #players do
-        local player = players[i]
-        if not player or not player.valid then
-            goto pre_exit
-        end
-        local map_name = 'mtn_v3'
-
-        if sub(player.surface.name, 0, #map_name) == map_name then
-            local position = player.position
-            local inside = ((position.x - loco.x) ^ 2 + (position.y - loco.y) ^ 2) < upgrades.locomotive_aura_radius ^ 2
-            if not inside then
-                local entity = player.character
-                if entity and entity.valid then
-                    death_effects(player)
-                    player.surface.create_entity({name = 'fire-flame', position = position})
-                    if random(1, 3) == 1 then
-                        player.surface.create_entity({name = 'medium-scorchmark', position = position, force = 'neutral'})
-                    end
-                    local max_health = floor(player.character.prototype.max_health + player.character_health_bonus + player.force.character_health_bonus)
-                    local vehicle = player.vehicle
-                    if vehicle and vehicle.valid and non_valid_vehicles[vehicle.type] then
-                        player.driving = false
-                    end
-                    if death_mode then
-                        if entity.name == 'character' then
-                            game.print(player.name .. messages[random(1, #messages)], {r = 200, g = 0, b = 0})
+    local map_name = 'mtn_v3'
+    Core.iter_connected_players(
+        function(player)
+            if sub(player.surface.name, 0, #map_name) == map_name then
+                local position = player.position
+                local inside = ((position.x - loco.x) ^ 2 + (position.y - loco.y) ^ 2) < upgrades.locomotive_aura_radius ^ 2
+                if not inside then
+                    local entity = player.character
+                    if entity and entity.valid then
+                        death_effects(player)
+                        player.surface.create_entity({name = 'fire-flame', position = position})
+                        if random(1, 3) == 1 then
+                            player.surface.create_entity({name = 'medium-scorchmark', position = position, force = 'neutral'})
                         end
-                        if entity.valid then
-                            entity.die()
+                        local max_health = floor(player.character.prototype.max_health + player.character_health_bonus + player.force.character_health_bonus)
+                        local vehicle = player.vehicle
+                        if vehicle and vehicle.valid and non_valid_vehicles[vehicle.type] then
+                            player.driving = false
                         end
-                    else
-                        local armor_inventory = player.get_inventory(defines.inventory.character_armor)
-                        if not armor_inventory.valid then
-                            goto pre_exit
-                        end
-                        local armor = armor_inventory[1]
-                        if not armor.valid_for_read then
-                            goto pre_exit
-                        end
-                        local grid = armor.grid
-                        if not grid or not grid.valid then
-                            goto pre_exit
-                        end
-                        local equip = grid.equipment
-                        for _, piece in pairs(equip) do
-                            if piece.valid then
-                                piece.energy = 0
+                        if death_mode then
+                            if entity.name == 'character' then
+                                game.print(player.name .. messages[random(1, #messages)], {r = 200, g = 0, b = 0})
                             end
-                        end
-                        local damage = (max_health / 18)
-                        if entity.valid then
-                            if entity.health - damage <= 0 then
-                                if entity.name == 'character' then
-                                    game.print(player.name .. messages[random(1, #messages)], {r = 200, g = 0, b = 0})
+                            if entity.valid then
+                                entity.die()
+                            end
+                        else
+                            local armor_inventory = player.get_inventory(defines.inventory.character_armor)
+                            if not armor_inventory.valid then
+                                goto pre_exit
+                            end
+                            local armor = armor_inventory[1]
+                            if not armor.valid_for_read then
+                                goto pre_exit
+                            end
+                            local grid = armor.grid
+                            if not grid or not grid.valid then
+                                goto pre_exit
+                            end
+                            local equip = grid.equipment
+                            for _, piece in pairs(equip) do
+                                if piece.valid then
+                                    piece.energy = 0
                                 end
                             end
+                            local damage = (max_health / 18)
+                            if entity.valid then
+                                if entity.health - damage <= 0 then
+                                    if entity.name == 'character' then
+                                        game.print(player.name .. messages[random(1, #messages)], {r = 200, g = 0, b = 0})
+                                    end
+                                end
+                            end
+                            entity.damage(damage, 'enemy')
                         end
-                        entity.damage(damage, 'enemy')
                     end
                 end
             end
+            ::pre_exit::
         end
-        ::pre_exit::
-    end
+    )
 end
 local function give_passive_xp(data)
     local xp_floating_text_color = {r = 188, g = 201, b = 63}
@@ -240,64 +237,63 @@ local function give_passive_xp(data)
     local rpg = data.rpg
     local loco = locomotive.position
 
-    for _, player in pairs(game.connected_players) do
-        if not player or not player.valid then
-            goto pre_exit
-        end
-        local position = player.position
-        local inside = ((position.x - loco.x) ^ 2 + (position.y - loco.y) ^ 2) < upgrades.locomotive_aura_radius ^ 2
-        if player.afk_time < 200 and not RPG.get_last_spell_cast(player) then
-            if inside or player.surface.index == loco_surface.index then
-                if player.surface.index == loco_surface.index then
-                    Public.add_player_to_permission_group(player, 'limited')
-                elseif ICFunctions.get_player_surface(player) then
-                    Public.add_player_to_permission_group(player, 'limited')
-                    goto pre_exit
+    Core.iter_connected_players(
+        function(player)
+            local position = player.position
+            local inside = ((position.x - loco.x) ^ 2 + (position.y - loco.y) ^ 2) < upgrades.locomotive_aura_radius ^ 2
+            if player.afk_time < 200 and not RPG.get_last_spell_cast(player) then
+                if inside or player.surface.index == loco_surface.index then
+                    if player.surface.index == loco_surface.index then
+                        Public.add_player_to_permission_group(player, 'limited')
+                    elseif ICFunctions.get_player_surface(player) then
+                        Public.add_player_to_permission_group(player, 'limited')
+                        goto pre_exit
+                    else
+                        Public.add_player_to_permission_group(player, 'near_locomotive')
+                    end
+
+                    rpg[player.index].inside_aura = true
+                    Modifiers.update_single_modifier(player, 'character_crafting_speed_modifier', 'aura', 1)
+                    Modifiers.update_player_modifiers(player)
+
+                    local pos = player.position
+                    RPG.gain_xp(player, 0.5 * (rpg[player.index].bonus + upgrades.xp_points))
+
+                    player.create_local_flying_text {
+                        text = '+' .. '',
+                        position = {x = pos.x, y = pos.y - 2},
+                        color = xp_floating_text_color,
+                        time_to_live = 60,
+                        speed = 3
+                    }
+                    rpg[player.index].xp_since_last_floaty_text = 0
+                    rpg[player.index].last_floaty_text = game.tick + visuals_delay
+                    RPG.set_last_spell_cast(player, player.position)
+                    if player.gui.screen[rpg_main_frame] then
+                        local f = player.gui.screen[rpg_main_frame]
+                        local d = Gui.get_data(f)
+                        if d and d.exp_gui and d.exp_gui.valid then
+                            d.exp_gui.caption = floor(rpg[player.index].xp)
+                        end
+                    end
                 else
-                    Public.add_player_to_permission_group(player, 'near_locomotive')
-                end
-
-                rpg[player.index].inside_aura = true
-                Modifiers.update_single_modifier(player, 'character_crafting_speed_modifier', 'aura', 1)
-                Modifiers.update_player_modifiers(player)
-
-                local pos = player.position
-                RPG.gain_xp(player, 0.5 * (rpg[player.index].bonus + upgrades.xp_points))
-
-                player.create_local_flying_text {
-                    text = '+' .. '',
-                    position = {x = pos.x, y = pos.y - 2},
-                    color = xp_floating_text_color,
-                    time_to_live = 60,
-                    speed = 3
-                }
-                rpg[player.index].xp_since_last_floaty_text = 0
-                rpg[player.index].last_floaty_text = game.tick + visuals_delay
-                RPG.set_last_spell_cast(player, player.position)
-                if player.gui.screen[rpg_main_frame] then
-                    local f = player.gui.screen[rpg_main_frame]
-                    local d = Gui.get_data(f)
-                    if d and d.exp_gui and d.exp_gui.valid then
-                        d.exp_gui.caption = floor(rpg[player.index].xp)
+                    rpg[player.index].inside_aura = false
+                    Modifiers.update_single_modifier(player, 'character_crafting_speed_modifier', 'aura', 0)
+                    Modifiers.update_player_modifiers(player)
+                    local active_surface_index = Public.get('active_surface_index')
+                    local surface = game.surfaces[active_surface_index]
+                    if surface and surface.valid then
+                        if player.surface.index == surface.index then
+                            Public.add_player_to_permission_group(player, 'main_surface')
+                        end
                     end
                 end
-            else
-                rpg[player.index].inside_aura = false
-                Modifiers.update_single_modifier(player, 'character_crafting_speed_modifier', 'aura', 0)
-                Modifiers.update_player_modifiers(player)
-                local active_surface_index = Public.get('active_surface_index')
-                local surface = game.surfaces[active_surface_index]
-                if surface and surface.valid then
-                    if player.surface.index == surface.index then
-                        Public.add_player_to_permission_group(player, 'main_surface')
-                    end
-                end
+            elseif player.afk_time > 1800 and player.character and player.surface.index == loco_surface.index then
+                player.character_personal_logistic_requests_enabled = false
             end
-        elseif player.afk_time > 600 and player.character and player.surface.index == loco_surface.index then
-            player.character_personal_logistic_requests_enabled = false
+            ::pre_exit::
         end
-        ::pre_exit::
-    end
+    )
 end
 
 local function fish_tag()
@@ -395,10 +391,6 @@ local function get_driver_action(entity)
 
     local player = driver.player
     if not player or not player.valid then
-        return
-    end
-
-    if player.admin then
         return
     end
 
@@ -563,6 +555,32 @@ local function on_player_changed_surface(event)
     elseif player.surface.index == surface.index then
         return Public.add_player_to_permission_group(player, 'main_surface')
     end
+end
+
+local function check_on_player_changed_surface()
+    local active_surface = Public.get('active_surface_index')
+    if not active_surface then
+        return
+    end
+
+    local surface = game.get_surface(active_surface)
+    if not surface or not surface.valid then
+        return
+    end
+
+    Core.iter_players(
+        function(player)
+            if player.surface.name == 'nauvis' then
+                local pos = surface.find_non_colliding_position('character', game.forces.player.get_spawn_position(surface), 3, 0, 5)
+                if pos then
+                    player.teleport(pos, surface)
+                else
+                    pos = game.forces.player.get_spawn_position(surface)
+                    player.teleport(pos, surface)
+                end
+            end
+        end
+    )
 end
 
 local function on_player_driving_changed_state(event)
@@ -808,6 +826,7 @@ local function tick()
     local ticker = game.tick
 
     if ticker % 30 == 0 then
+        check_on_player_changed_surface()
         set_locomotive_health()
         validate_index()
         fish_tag()

@@ -295,6 +295,9 @@ local artillery_target_callback =
 
         local art_table = this.art_table
         local outpost = art_table[index]
+        if not outpost then
+            return
+        end
 
         if not entity.valid then
             outpost.last_fire_tick = 0
@@ -339,7 +342,7 @@ local artillery_target_callback =
 local function do_beams_away()
     local wave_number = WD.get_wave()
     local orbital_strikes = Public.get('orbital_strikes')
-    if not orbital_strikes.enabled then
+    if not orbital_strikes or not orbital_strikes.enabled then
         return
     end
 
@@ -373,7 +376,7 @@ local function do_clear_enemy_spawners()
     end
 
     local enemy_spawners = Public.get('enemy_spawners')
-    if not enemy_spawners.enabled then
+    if not enemy_spawners or not enemy_spawners.enabled then
         return
     end
 
@@ -865,16 +868,6 @@ remove_boost_movement_speed_on_respawn =
             data.tries = 0
         end
 
-        if not player.character or not player.character.valid then
-            data.tries = data.tries + 1
-            if data.tries > 10 then
-                return
-            end
-
-            Task.set_timeout_in_ticks(10, remove_boost_movement_speed_on_respawn, {player = player, tries = data.tries})
-            return
-        end
-
         Modifiers.update_single_modifier(player, 'character_running_speed_modifier', 'v3_move_boost')
         Modifiers.update_player_modifiers(player)
 
@@ -1325,6 +1318,10 @@ end
 
 function Public.on_player_joined_game(event)
     local active_surface_index = Public.get('active_surface_index')
+    if not active_surface_index then
+        return
+    end
+
     local players = Public.get('players')
     local player = game.players[event.player_index]
     local surface = game.surfaces[active_surface_index]
@@ -1332,6 +1329,8 @@ function Public.on_player_joined_game(event)
     Public.set_difficulty()
 
     ICW_Func.is_minimap_valid(player, surface)
+
+    Modifiers.update_player_modifiers(player)
 
     if player.online_time < 1 then
         if not players[player.index] then
@@ -1399,7 +1398,16 @@ function Public.on_player_joined_game(event)
     if not locomotive or not locomotive.valid then
         return
     end
-    if player.position.y > locomotive.position.y then
+
+    local adjusted_zones = Public.get('adjusted_zones')
+    local distance_from_train
+    if adjusted_zones.reversed then
+        distance_from_train = player.position.y < locomotive.position.y
+    else
+        distance_from_train = player.position.y > locomotive.position.y
+    end
+
+    if distance_from_train then
         local pos = surface.find_non_colliding_position('character', game.forces.player.get_spawn_position(surface), 3, 0, 5)
         if pos then
             player.teleport(pos, surface)
@@ -1617,9 +1625,11 @@ function Public.on_research_finished(event)
     end
 
     research.force.character_inventory_slots_bonus = player.mining_drill_productivity_bonus * 50 -- +5 Slots /
-    bonus_drill.mining_drill_productivity_bonus = bonus_drill.mining_drill_productivity_bonus + 0.03
-    if bonus_drill.mining_drill_productivity_bonus >= 3 then
-        bonus_drill.mining_drill_productivity_bonus = 3
+    if bonus_drill then
+        bonus_drill.mining_drill_productivity_bonus = bonus_drill.mining_drill_productivity_bonus + 0.03
+        if bonus_drill.mining_drill_productivity_bonus >= 3 then
+            bonus_drill.mining_drill_productivity_bonus = 3
+        end
     end
 
     local players = game.connected_players

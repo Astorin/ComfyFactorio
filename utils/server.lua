@@ -32,6 +32,7 @@ local start_data = {server_id = nil, server_name = nil, start_time = nil}
 local instances = {
     data = {}
 }
+local admins = {}
 local requests = {}
 local jailed_data_set = 'jailed'
 local data_set_handlers = {}
@@ -43,7 +44,8 @@ Global.register(
         server_ups = server_ups,
         start_data = start_data,
         requests = requests,
-        instances = instances
+        instances = instances,
+        admins = admins
     },
     function(tbl)
         server_time = tbl.server_time
@@ -51,6 +53,7 @@ Global.register(
         start_data = tbl.start_data
         requests = tbl.requests
         instances = tbl.instances
+        admins = tbl.admins
     end
 )
 
@@ -101,6 +104,11 @@ local antigrief_tag = '[ANTIGRIEF-LOG]'
 Public.raw_print = raw_print
 
 local function output_data(primary, secondary)
+    local secs = server_time.secs
+    if secs == nil then
+        return false
+    end
+
     if start_data and start_data.output then
         local write = game.write_file
         write(start_data.output, primary .. (secondary or '') .. newline, true, 0)
@@ -921,6 +929,22 @@ function Public.try_get_all_data(data_set, callback_token)
     output_data(message)
 end
 
+local function raise_admins(data)
+    if not data or not next(data) then
+        return
+    end
+
+    if admins and next(admins) then
+        for _, admin in pairs(admins) do
+            admins[admin] = nil
+        end
+    end
+
+    for _, admin in pairs(data) do
+        admins[admin] = true
+    end
+end
+
 local function data_set_changed(data)
     local handlers = data_set_handlers[data.data_set]
     if handlers == nil then
@@ -1036,6 +1060,9 @@ end
 
 --- Called by the web server to notify the client that a data_set has changed.
 Public.raise_data_set = data_set_changed
+
+--- Called by the web server to notify the client that a data_set has changed.
+Public.raise_admins = raise_admins
 
 --- Called by the web server to notify the client that the subscribed scenario has changed.
 Public.raise_scenario_changed = scenario_changed
@@ -1170,6 +1197,18 @@ end
 -- @return number?
 function Public.get_start_time()
     return start_data.start_time
+end
+
+--- Gets the server's start data. nil if not known.
+-- @return table?
+function Public.get_start_data()
+    return start_data
+end
+
+--- Gets the server's admin list. nil if not known.
+-- @return table?
+function Public.get_admins_data()
+    return admins
 end
 
 --- If the player exists bans the player.
@@ -1364,9 +1403,9 @@ function Public.get_current_date(pretty, as_table, current_time)
     if as_table then
         return {year = date.year, month = date.month, day = date.day}
     elseif pretty then
-        return tonumber(date.year .. '-' .. date.month .. '-' .. date.day)
+        return date.year .. '-' .. date.month .. '-' .. date.day
     else
-        return tonumber(date.year .. date.month .. date.day)
+        return date.year .. date.month .. date.day
     end
 end
 
