@@ -21,9 +21,9 @@ require 'modules.floaty_chat'
 require 'modules.show_inventory'
 require 'modules.inserter_drops_pickup'
 require 'modules.autostash'
+require 'modules.robot_limits'
 
 require 'utils.gui.init'
-require 'utils.freeplay'
 require 'utils.remote_chunks'
 
 ---------------- !ENABLE MODULES HERE ----------------
