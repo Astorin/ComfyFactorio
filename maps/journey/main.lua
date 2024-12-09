@@ -188,6 +188,10 @@ local function on_rocket_launched(event)
 	end
 	rocket_inventory.clear()
 	rocket_inventory.insert({name = 'space-science-pack', count = 200})
+	local force = event.rocket.force
+	force.technologies['space-science-pack'].researched = true
+	force.print('[technology=space-science-pack] researched.')
+	force.play_sound({path = 'utility/research_completed'})
 	Functions.draw_gui(journey)
 end
 
@@ -260,7 +264,7 @@ local function cmd_handler()
 	end
 	if player and not player.admin then
 		p('You are not an admin!')
-		return false
+		return false, nil, p
 	end
 	return true, player or {name = 'Server'}, p
 end

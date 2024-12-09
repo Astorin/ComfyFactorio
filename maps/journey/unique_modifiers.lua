@@ -220,7 +220,9 @@ Public.replicant_fauna = {
             return
         end
         if cause.force.index == 2 then
-            cause.surface.create_entity({ name = BiterRaffle.roll('mixed', game.forces.enemy.evolution_factor), position = entity.position, force = 'enemy' })
+            local surface = entity.surface
+            local force = game.forces.enemy
+            surface.create_entity({ name = BiterRaffle.roll('mixed', force.get_evolution_factor(surface)), position = entity.position, force = force })
         end
     end
 }
@@ -279,6 +281,7 @@ Public.tarball = {
 Public.swamps = {
     set_specials = function (journey)
         journey.world_specials['water'] = 2
+        journey.world_specials['scale'] = 0.5
     end,
     on_chunk_generated = function (event, journey)
         local surface = event.surface
@@ -326,7 +329,7 @@ Public.wasteland = {
         if math_random(1, 3) ~= 1 then
             return
         end
-        for _ = 1, math_random(0, 5), 1 do
+        for _ = 1, math_random(0, 8), 1 do
             local name = wrecks[math_random(1, size_of_wrecks)]
             local position = surface.find_non_colliding_position(name, { left_top_x + math_random(0, 31), left_top_y + math_random(0, 31) }, 16, 1)
             if position then
@@ -342,31 +345,13 @@ Public.wasteland = {
             end
         end
     end,
-    on_world_start = function (journey)
-        local surface = game.surfaces.nauvis
-        local mgs = surface.map_gen_settings
-        mgs.terrain_segmentation = 2.7
-        mgs.water = mgs.water + 1
-        surface.map_gen_settings = mgs
-        surface.clear(true)
-    end,
-    clear = function (journey)
-        local surface = game.surfaces.nauvis
-        local mgs = surface.map_gen_settings
-        mgs.water = mgs.water - 1
-        surface.map_gen_settings = mgs
+    set_specials = function (journey)
+        journey.world_specials['water'] = 2
+        journey.world_specials['scale'] = 2.7
     end
 }
 
 Public.oceanic = {
-    on_world_start = function (journey)
-        local surface = game.surfaces.nauvis
-        local mgs = surface.map_gen_settings
-        mgs.terrain_segmentation = 0.5
-        mgs.water = mgs.water + 6
-        surface.map_gen_settings = mgs
-        surface.clear(true)
-    end,
     on_robot_built_entity = function (event)
         local entity = event.entity
         if not entity.valid then
@@ -391,11 +376,10 @@ Public.oceanic = {
             entity.die()
         end
     end,
-    clear = function (journey)
-        local surface = game.surfaces.nauvis
-        local mgs = surface.map_gen_settings
-        mgs.water = mgs.water - 6
-        surface.map_gen_settings = mgs
+    set_specials = function (journey)
+        journey.world_specials['water'] = 6
+        journey.world_specials['scale'] = 0.5
+        journey.world_specials['stone'] = 2
     end
 }
 
@@ -425,10 +409,10 @@ Public.volcanic = {
         if surface.index ~= 1 then
             return
         end
-        if solid_tiles[surface.get_tile(player.position.x, player.position.y).name] then
+        if solid_tiles[surface.get_tile(player.physical_position.x, player.physical_position.y).name] then
             return
         end
-        surface.create_entity({ name = 'fire-flame', position = player.position })
+        surface.create_entity({ name = 'fire-flame', position = player.physical_position })
     end,
     on_world_start = function (journey)
         local surface = game.surfaces.nauvis
@@ -500,7 +484,9 @@ Public.infested = {
         if entity.type ~= 'simple-entity' and entity.type ~= 'tree' then
             return
         end
-        entity.surface.create_entity({ name = BiterRaffle.roll('mixed', game.forces.enemy.evolution_factor + 0.1), position = entity.position, force = 'enemy' })
+        local surface = entity.surface
+        local force = game.forces.enemy
+        surface.create_entity({ name = BiterRaffle.roll('mixed', force.get_evolution_factor(surface) + 0.1), position = entity.position, force = force })
     end,
     on_player_mined_entity = function (event)
         if math_random(1, 2) == 1 then
@@ -516,7 +502,9 @@ Public.infested = {
         if entity.type ~= 'simple-entity' and entity.type ~= 'tree' then
             return
         end
-        entity.surface.create_entity({ name = BiterRaffle.roll('mixed', game.forces.enemy.evolution_factor + 0.1), position = entity.position, force = 'enemy' })
+        local surface = entity.surface
+        local force = game.forces.enemy
+        surface.create_entity({ name = BiterRaffle.roll('mixed', force.get_evolution_factor(surface) + 0.1), position = entity.position, force = force })
     end,
     on_robot_mined_entity = function (event)
         local entity = event.entity
@@ -529,7 +517,9 @@ Public.infested = {
         if entity.type ~= 'simple-entity' and entity.type ~= 'tree' then
             return
         end
-        entity.surface.create_entity({ name = BiterRaffle.roll('mixed', game.forces.enemy.evolution_factor + 0.1), position = entity.position, force = 'enemy' })
+        local surface = entity.surface
+        local force = game.forces.enemy
+        surface.create_entity({ name = BiterRaffle.roll('mixed', force.get_evolution_factor(surface) + 0.1), position = entity.position, force = force })
     end
 }
 
@@ -764,9 +754,9 @@ Public.crazy_science = {
     on_research_finished = function (event, journey)
         local name = 'technology_price_multiplier'
         local force = event.research.force
-        journey.world_specials[name] = math.max(0.1, journey.world_specials[name] * 0.95)
+        journey.world_specials[name] = math.max(0.1, journey.world_specials[name] * 0.96)
         game.difficulty_settings.technology_price_multiplier = journey.world_modifiers[name] * (journey.world_specials[name] or 1)
-        force.laboratory_productivity_bonus = math.max(0.1, force.laboratory_productivity_bonus * 0.95)
+        force.laboratory_productivity_bonus = math.max(0.1, force.laboratory_productivity_bonus * 0.96)
     end
 }
 

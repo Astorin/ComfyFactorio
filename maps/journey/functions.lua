@@ -130,7 +130,7 @@ local function drop_player_items(journey, player)
     end
 
     local surface = player.surface
-    local spill_blockage = surface.create_entity { name = 'oil-refinery', position = journey.beacon_objective.position or player.position }
+    local spill_blockage = surface.create_entity { name = 'oil-refinery', position = journey.beacon_objective.position or player.physical_position }
 
     for _, define in pairs({ defines.inventory.character_main, defines.inventory.character_guns, defines.inventory.character_ammo, defines.inventory.character_armor, defines.inventory.character_vehicle, defines.inventory.character_trash }) do
         local inventory = character.get_inventory(define)
@@ -138,7 +138,7 @@ local function drop_player_items(journey, player)
             for i = 1, #inventory, 1 do
                 local slot = inventory[i]
                 if slot.valid and slot.valid_for_read then
-                    surface.spill_item_stack({ position = player.position, stack = slot, enable_looted = true, allow_belts = false })
+                    surface.spill_item_stack({ position = player.physical_position, stack = slot, enable_looted = true, allow_belts = false })
                 end
             end
             inventory.clear()
@@ -196,10 +196,11 @@ local function set_map_modifiers(journey)
     mgs.autoplace_controls['enemy-base'].richness = calc_modifier(journey, 'enemy_base_richness')
     mgs.autoplace_controls['enemy-base'].size = calc_modifier(journey, 'enemy_base_size')
     mgs.autoplace_controls['enemy-base'].frequency = calc_modifier(journey, 'enemy_base_frequency')
+    mgs.autoplace_controls['water'].size = calc_modifier(journey, 'water')
+    mgs.autoplace_controls['water'].frequency = calc_modifier(journey, 'scale')
     mgs.starting_area = calc_modifier(journey, 'starting_area')
     mgs.cliff_settings.cliff_elevation_interval = calc_modifier(journey, 'cliff_frequency')
     mgs.cliff_settings.richness = calc_modifier(journey, 'cliff_continuity')
-    mgs.water = calc_modifier(journey, 'water')
     game.map_settings.enemy_evolution['time_factor'] = calc_modifier(journey, 'time_factor')
     game.map_settings.enemy_evolution['destroy_factor'] = calc_modifier(journey, 'destroy_factor')
     game.map_settings.enemy_evolution['pollution_factor'] = calc_modifier(journey, 'pollution_factor')
@@ -325,14 +326,11 @@ local function cargo_gui(name, itemname, tooltip, value, hidden)
             sprite.style.maximal_height = 28
             sprite.style.margin = 0
             sprite.style.padding = 0
-            local progressbar = frame.add({ type = 'progressbar', name = name .. '_progressbar', value = 0 })
-            progressbar.style = 'achievement_progressbar'
-            local progressbar_style = progressbar.style --[[@as LuaGuiElementStyle]]
+            local progressbar = frame.add({ type = 'progressbar', name = name .. '_progressbar', value = 0, style = 'achievement_progressbar' })
+            local progressbar_style = progressbar.style
             progressbar_style.minimal_width = 100
             progressbar_style.maximal_width = 100
-            ---@diagnostic disable-next-line: inject-field
             progressbar_style.top_margin = 2
-            ---@diagnostic disable-next-line: inject-field
             progressbar_style.right_margin = 6
             progressbar_style.height = 20
         end
@@ -696,7 +694,7 @@ function Public.draw_mothership(journey)
             only_in_alt_mode = false
         }
 
-    for k, item_name in pairs({ 'arithmetic-combinator', 'constant-combinator', 'decider-combinator', 'programmable-speaker', 'small-lamp', 'substation', 'pipe', 'gate', 'stone-wall', 'transport-belt' }) do
+    for k, item_name in pairs({ 'arithmetic-combinator', 'constant-combinator', 'decider-combinator', 'selector-combinator', 'display-panel', 'programmable-speaker', 'small-lamp', 'substation', 'pipe', 'gate', 'stone-wall', 'transport-belt' }) do
         local chest = surface.create_entity({ name = 'infinity-chest', position = { -7 + k, Constants.mothership_radius - 3 }, force = 'player' })
         if not chest or not chest.valid then break end
         chest.set_infinity_container_filter(1, { name = item_name, count = prototypes.item[item_name].stack_size, index = 1 })
@@ -905,7 +903,7 @@ function Public.set_world_selectors(journey)
             world_selector.modifiers = {}
             world_selector.bonus_goods = {}
             world_selector.world_trait = unique_world_traits[k]
-            world_selector.fuel_requirement = Math.random(25, 50)
+            world_selector.fuel_requirement = Math.random(5, 10)
         end
         local position = Constants.world_selector_areas[k].left_top
         local texts = world_selector.texts
@@ -1076,7 +1074,7 @@ function Public.set_world_selectors(journey)
     Server.to_discord_embed('World ' .. journey.world_number + 1 .. ' selection has started!')
     Public.set_minimum_to_vote(journey)
     journey.importing = false
-
+    game.forces.player.set_surface_hidden(game.surfaces.nauvis, true)
     journey.game_state = 'delete_nauvis_chunks'
 end
 
@@ -1270,8 +1268,9 @@ function Public.create_the_world(journey)
     local surface = game.surfaces.nauvis
     local mgs = surface.map_gen_settings
     mgs.seed = Math.random(1, 4294967295)
-    mgs.terrain_segmentation = Math.random(10, 20) * 0.1
+    journey.world_modifiers['scale'] = Math.random(10, 20) * 0.1
     mgs.peaceful_mode = false
+    surface.map_gen_settings = mgs
 
     local modifiers = journey.world_selectors[journey.selected_world].modifiers
     for _, modifier in pairs(modifiers) do
@@ -1280,7 +1279,6 @@ function Public.create_the_world(journey)
         local extremes = { Constants.modifiers[name].min, Constants.modifiers[name].max }
         journey.world_modifiers[name] = math.round(math.min(extremes[2], math.max(extremes[1], journey.world_modifiers[name] * m)) * 100000, 5) / 100000
     end
-    surface.map_gen_settings = mgs
     journey.world_trait = journey.world_selectors[journey.selected_world].world_trait
 
     local unique_modifier = Unique_modifiers[journey.world_trait]
@@ -1397,6 +1395,7 @@ function Public.place_teleporter_into_world(journey)
     surface.request_to_generate_chunks({ x = 0, y = 0 }, 3)
     surface.force_generate_chunk_requests()
     place_teleporter(journey, surface, Constants.mothership_teleporter_position, true)
+    game.forces.player.set_surface_hidden(surface, false)
     journey.game_state = 'make_it_night'
 end
 
@@ -1572,8 +1571,11 @@ function Public.teleporters(journey, player)
     if not player.character.valid then
         return
     end
-    local surface = player.surface
-    local tile = surface.get_tile(player.position)
+    local surface = player.physical_surface
+    local tile = surface.get_tile(player.physical_position)
+    if not tile or not tile.valid then
+        return
+    end
     if tile.name ~= Constants.teleporter_tile and tile.hidden_tile ~= Constants.teleporter_tile then
         return
     end
