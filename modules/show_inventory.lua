@@ -236,6 +236,11 @@ local function redraw_inventory(gui, source, target, caption, panel_type)
                                 }
                             )
                         armor_gui.enabled = false
+                        if item.quality ~= 'normal' then
+                            local qualgrid_button = armor_gui.add({type = 'sprite-button', sprite = 'quality/' .. quality.name, style = 'transparent_slot'})
+                            qualgrid_button.style.top_padding = 18
+                            qualgrid_button.style.right_padding = 18
+                        end
                     end
                 end
             end
