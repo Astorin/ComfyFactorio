@@ -2,7 +2,7 @@
 
 local Global = require 'utils.global'
 local Color = require 'utils.color_presets'
-local SpamProtection = require 'utils.spam_protection'
+-- local SpamProtection = require 'utils.spam_protection'
 local Event = require 'utils.event'
 local Gui = require 'utils.gui'
 local Commands = require 'utils.commands'
@@ -108,7 +108,7 @@ local function player_opened(player)
 
     local opened = data.player_opened
 
-    if not opened then
+    if not opened or not player.gui.screen[main_frame_name] then
         return false
     end
 
@@ -197,6 +197,7 @@ local function redraw_inventory(gui, source, target, caption, panel_type)
         if panel_type[i] and panel_type[i].valid_for_read then
             local name = panel_type[i].name
             local count = panel_type[i].count
+            local quality = panel_type[i].quality
             local flow = items_table.add({ type = 'flow' })
             flow.style.vertical_align = 'bottom'
 
@@ -207,28 +208,39 @@ local function redraw_inventory(gui, source, target, caption, panel_type)
                         sprite = 'item/' .. name,
                         number = count,
                         name = name,
-                        tooltip = types[name].localised_name,
+                        tooltip = {'', (quality.name == 'normal' and '' or {'', quality.localised_name, ' '}), types[name].localised_name},
                         style = 'slot_button'
                     }
                 )
             button.enabled = false
+            if quality.name ~= 'normal' then
+                local qual_button = button.add({type = 'sprite-button', sprite = 'quality/' .. quality.name, style = 'transparent_slot'})
+                qual_button.style.top_padding = 18
+                qual_button.style.right_padding = 18
+            end
 
             if caption == 'Armor' then
                 if target.get_inventory(5)[1].grid then
                     local p_armor = target.get_inventory(5)[1].grid.get_contents()
-                    for k, v in pairs(p_armor) do
+                    local grid_flow = items_table.add({ type = 'table', column_count = 10 })
+                    for _, item in pairs(p_armor) do
                         local armor_gui =
-                            flow.add(
+                            grid_flow.add(
                                 {
                                     type = 'sprite-button',
-                                    sprite = 'item/' .. k,
-                                    number = v,
-                                    name = k,
-                                    tooltip = types[name].localised_name,
+                                    sprite = 'item/' .. item.name,
+                                    number = item.count,
+                                    name = item.name .. item.quality,
+                                    tooltip = {'', (item.quality == 'normal' and '' or {'', prototypes.quality[item.quality].localised_name, ' '}), types[item.name].localised_name},
                                     style = 'slot_button'
                                 }
                             )
                         armor_gui.enabled = false
+                        if item.quality ~= 'normal' then
+                            local qualgrid_button = armor_gui.add({type = 'sprite-button', sprite = 'quality/' .. quality.name, style = 'transparent_slot'})
+                            qualgrid_button.style.top_padding = 18
+                            qualgrid_button.style.right_padding = 18
+                        end
                     end
                 end
             end
@@ -336,7 +348,7 @@ end
 
 local function on_gui_click(event)
     local player = game.get_player(event.player_index)
-    if not this.data[player.index] then
+    if not player or not this.data[player.index] then
         return
     end
 
@@ -360,10 +372,10 @@ local function on_gui_click(event)
         return
     end
 
-    local is_spamming = SpamProtection.is_spamming(player, nil, 'Player Inventory')
-    if is_spamming then
-        return
-    end
+    -- local is_spamming = SpamProtection.is_spamming(player, nil, 'Player Inventory')
+    -- if is_spamming then
+    --     return
+    -- end
 
     local data = get_player_data(player)
     if not data then
@@ -390,7 +402,7 @@ end
 
 local function on_pre_player_left_game(event)
     local player = game.get_player(event.player_index)
-    if not this.data[player.index] then
+    if not player or not this.data[player.index] then
         return
     end
 
@@ -404,7 +416,7 @@ local function update_gui(event)
     end
 
     local source_player, source_data = watching_inventory(player)
-    if not source_player then
+    if not source_player or not source_data then
         return
     end
 
@@ -491,7 +503,7 @@ Gui.on_custom_close(
     main_frame_name,
     function (event)
         local player = game.get_player(event.player_index)
-        if not this.data[player.index] then
+        if not player or not this.data[player.index] then
             return
         end
 
@@ -504,6 +516,8 @@ Event.add(defines.events.on_player_gun_inventory_changed, update_gui)
 Event.add(defines.events.on_player_ammo_inventory_changed, update_gui)
 Event.add(defines.events.on_player_armor_inventory_changed, update_gui)
 Event.add(defines.events.on_player_trash_inventory_changed, update_gui)
+Event.add(defines.events.on_player_placed_equipment, update_gui)
+Event.add(defines.events.on_player_removed_equipment, update_gui)
 Event.add(defines.events.on_gui_click, on_gui_click)
 Event.add(defines.events.on_pre_player_left_game, on_pre_player_left_game)
 
