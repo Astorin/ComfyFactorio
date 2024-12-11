@@ -2,7 +2,7 @@
 
 local Global = require 'utils.global'
 local Color = require 'utils.color_presets'
-local SpamProtection = require 'utils.spam_protection'
+-- local SpamProtection = require 'utils.spam_protection'
 local Event = require 'utils.event'
 local Gui = require 'utils.gui'
 local Commands = require 'utils.commands'
