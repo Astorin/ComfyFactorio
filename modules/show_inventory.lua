@@ -213,6 +213,11 @@ local function redraw_inventory(gui, source, target, caption, panel_type)
                     }
                 )
             button.enabled = false
+            if quality.name ~= 'normal' then
+                local qual_button = button.add({type = 'sprite-button', sprite = 'quality/' .. quality.name, style = 'transparent_slot'})
+                qual_button.style.top_padding = 18
+                qual_button.style.right_padding = 18
+            end
 
             if caption == 'Armor' then
                 if target.get_inventory(5)[1].grid then
