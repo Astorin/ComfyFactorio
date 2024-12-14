@@ -7,11 +7,9 @@ local Map_info = require 'modules.map_info'
 local FT = require 'utils.functions.flying_texts'
 
 local get_noise = require 'utils.math.get_noise'
-local table_insert = table.insert
 local math_random = math.random
 local math_floor = math.floor
 local math_abs = math.abs
-local string_sub = string.sub
 
 local oasis_start = 0.50
 local water_start = 0.81
@@ -70,7 +68,7 @@ local function calculate_gleba(surface, position)
     return moisture
 end
 
-local function calculate_aquilo(surface, position)
+local function calculate_aquilo(_surface, _position)
     local moisture = 45
     return moisture
 end
@@ -377,7 +375,7 @@ local function on_init()
 
     storage.desert_oasis_seed = 0
     local noise
-    local seed = 0
+    local seed
     local position = { x = 0, y = 0 }
     for _ = 1, 1024 ^ 2, 1 do
         seed = math_random(1, 999999999)
