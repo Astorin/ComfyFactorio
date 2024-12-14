@@ -1,19 +1,39 @@
 --Players will have to carry water barrels or stand next to a water tile, to keep themselves hydrated!
 
+local Global = require 'utils.global'
 local Event = require 'utils.event'
 local Player_modifiers = require 'utils.player_modifiers'
 local random = math.random
 local tooltip = 'How thirsty your character is.\nStand next to water,\nor keep water-barrels in your inventory to take a sip.'
 
+local this = {
+    hydration = {},
+    planet_thirstiness = {
+        custom = 1,
+        nauvis = 1,
+        gleba = 0.6,
+        vulcanus = 3,
+        aquilo = 0.8,
+        fulgora = 1.5
+    }
+}
+
+Global.register(
+    this,
+    function (tbl)
+        this = tbl
+    end
+)
+
 local function update_player_modifiers(player)
-    if storage.hydration[player.index] <= 0 then
-        storage.hydration[player.index] = 100
+    if this.hydration[player.index] <= 0 then
+        this.hydration[player.index] = 500
         player.character.die()
         game.print(player.name .. ' forgot to take a sip.')
         return
     end
 
-    local m = ((storage.hydration[player.index] - 100) * 0.01) + 0.2
+    local m = ((this.hydration[player.index] - 1000) * 0.001) + 0.2
     Player_modifiers.update_single_modifier(player, 'character_mining_speed_modifier', 'thirst', m)
     Player_modifiers.update_single_modifier(player, 'character_running_speed_modifier', 'thirst', m)
     Player_modifiers.update_single_modifier(player, 'character_crafting_speed_modifier', 'thirst', m)
@@ -24,7 +44,7 @@ local function update_hydration_meter(player)
     local hydration_meter = player.gui.top.hydration_meter
 
     if not hydration_meter then
-        storage.hydration[player.index] = 100
+        this.hydration[player.index] = 1000
 
         hydration_meter = player.gui.top.add({ type = 'frame', name = 'hydration_meter' })
         hydration_meter.style.padding = 3
@@ -45,43 +65,51 @@ local function update_hydration_meter(player)
         return
     end
 
-    hydration_meter.children[2].caption = storage.hydration[player.index]
+    hydration_meter.children[2].caption = this.hydration[player.index] / 10
+end
+
+local function local_modifier(surface)
+    local planet_name = surface.planet and surface.planet.name or 'custom'
+    local modifier = this.planet_thirstiness[planet_name] or this.planet_thirstiness['custom']
+    return modifier
 end
 
 local function sip(player)
-    if not storage.hydration[player.index] then
+    if not this.hydration[player.index] then
         return
     end
     if random(1, 4) == 1 then
-        storage.hydration[player.index] = storage.hydration[player.index] - 1
+        this.hydration[player.index] = this.hydration[player.index] - (10 * local_modifier(player.physical_surface))
     end
-    if storage.hydration[player.index] == 100 then
+    if this.hydration[player.index] == 1000 then
         return
     end
-
-    if
-        player.surface.count_tiles_filtered(
-            { name = { 'water', 'deepwater' }, area = { { player.position.x - 1, player.position.y - 1 }, { player.position.x + 1, player.position.y + 1 } } }
-        ) > 0
-    then
-        storage.hydration[player.index] = storage.hydration[player.index] + 20
-        if storage.hydration[player.index] > 100 then
-            storage.hydration[player.index] = 100
+    local water_tiles = player.surface.count_tiles_filtered({
+        name = { 'water', 'deepwater', 'water-mud', 'water-shallow' },
+        area = { { player.position.x - 1, player.position.y - 1 }, { player.position.x + 1, player.position.y + 1 } }
+    })
+    if water_tiles > 0 then
+        this.hydration[player.index] = this.hydration[player.index] + 200
+        if this.hydration[player.index] > 1000 then
+            this.hydration[player.index] = 1000
         end
         return
     end
 
-    if storage.hydration[player.index] > 90 then
+    if this.hydration[player.index] > 900 then
         return
     end
 
-    local inventory = player.get_main_inventory()
+    local inventory = player and player.character and player.character.get_main_inventory()
+    if not inventory then
+        return
+    end
     local removed_count = inventory.remove({ name = 'water-barrel', count = 1 })
     if removed_count == 0 then
         return
     end
 
-    storage.hydration[player.index] = storage.hydration[player.index] + 10
+    this.hydration[player.index] = this.hydration[player.index] + 100
     player.play_sound { path = 'utility/armor_insert', volume_modifier = 0.9 }
 
     local inserted_count = inventory.insert({ name = 'barrel', count = 1 })
@@ -93,7 +121,7 @@ local function sip(player)
 end
 
 local function on_player_changed_position(event)
-    if random(1, 320) ~= 1 then
+    if random(1, 320 ) ~= 1 then
         return
     end
     local player = game.players[event.player_index]
@@ -106,14 +134,14 @@ local function on_player_changed_position(event)
     if player.vehicle then
         return
     end
-    storage.hydration[player.index] = storage.hydration[player.index] - 1
+    this.hydration[player.index] = this.hydration[player.index] - (10 * local_modifier(player.physical_surface))
 end
 
 local function on_player_died(event)
-    if not storage.hydration[event.player_index] then
+    if not this.hydration[event.player_index] then
         return
     end
-    storage.hydration[event.player_index] = 100
+    this.hydration[event.player_index] = 500
 end
 
 local function tick()
@@ -128,11 +156,6 @@ local function tick()
     end
 end
 
-local function on_init()
-    storage.hydration = {}
-end
-
 Event.add(defines.events.on_player_changed_position, on_player_changed_position)
 Event.add(defines.events.on_player_died, on_player_died)
 Event.on_nth_tick(120, tick)
-Event.on_init(on_init)
