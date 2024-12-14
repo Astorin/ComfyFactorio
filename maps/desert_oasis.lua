@@ -395,6 +395,8 @@ local function on_init()
     surface.request_to_generate_chunks({ 0, 0 }, 3)
     surface.force_generate_chunk_requests()
     surface.set_property('solar-power', 200)
+    local force = game.forces.player
+    force.technologies['cliff-explosives'].enabled = false
 end
 
 local type_whitelist = {
