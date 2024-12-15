@@ -225,7 +225,7 @@ local function on_init()
             moisture = 0,
             elevation = 'elevation_nauvis'
         },
-        starting_area = 3,
+        starting_area = 2,
         terrain_segmentation = 0.1,
         cliff_settings = {
             cliff_elevation_interval = 40,
@@ -237,11 +237,11 @@ local function on_init()
         },
         default_enable_all_autoplace_controls = false,
         autoplace_controls = {
-            ['coal'] = { frequency = 23, size = 0.5, richness = 1.5 },
-            ['stone'] = { frequency = 20, size = 0.5, richness = 0.5 },
-            ['copper-ore'] = { frequency = 25, size = 0.5, richness = 1.5 },
-            ['iron-ore'] = { frequency = 35, size = 0.5, richness = 1.5 },
-            ['uranium-ore'] = { frequency = 20, size = 0.5, richness = 1.5 },
+            ['coal'] = { frequency = 23, size = 0.5, richness = 1.25 },
+            ['stone'] = { frequency = 20, size = 0.5, richness = 0.66 },
+            ['copper-ore'] = { frequency = 25, size = 0.5, richness = 1.25 },
+            ['iron-ore'] = { frequency = 35, size = 0.5, richness = 1.25 },
+            ['uranium-ore'] = { frequency = 20, size = 0.5, richness = 1.25 },
             ['crude-oil'] = { frequency = 50, size = 0.55, richness = 2 },
             ['trees'] = { frequency = 0.75, size = 0.75, richness = 0.1 },
             ['enemy-base'] = { frequency = 15, size = 1, richness = 1 },
@@ -433,8 +433,12 @@ local function deny_building(event)
         return
     end
 
-    if type_whitelist[event.entity.type] then
-        return
+    if type_whitelist[entity.type] then
+        if entity.type == 'entity-ghost' then
+            if type_whitelist[entity.ghost_name] then
+                return
+            end
+        end
     end
 
     if safe_tiles[entity.surface.get_tile(entity.position).name] then
