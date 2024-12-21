@@ -1574,6 +1574,12 @@ stds.factorio_defines = {
                 },
                 events = {
                     fields = {
+                        'mtn-shift-autostash-all',
+                        'mtn-shift-autostash-ores',
+                        'mtn-shift-autostash-furnaces',
+                        'mtn-shift-autostash-filtered',
+                        'mtn-shift-autostash-wagon',
+                        'mtn-shift-cast-spell',
                         'on_picked_up_item',
                         'on_space_platform_changed_state',
                         'on_object_destroyed',
