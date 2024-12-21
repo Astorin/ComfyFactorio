@@ -159,7 +159,7 @@ local has_the_game_ended = function ()
                     game.print(({ 'entity.notify_restart' }), { r = 0.22, g = 0.88, b = 0.22 })
                     local message = 'Soft-reset is disabled! Server will restart from scenario to load new changes.'
                     Server.to_discord_bold(table.concat { '*** ', message, ' ***' })
-                    Server.start_scenario('')
+                    Server.start_scenario('Mountain_Fortress_v3')
                     this.announced_message = true
                     return
                 end
