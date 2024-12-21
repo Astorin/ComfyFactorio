@@ -55,7 +55,7 @@ local function add_mystical_chest(surface)
         end
 
         this.mystical_chest = surface.create_entity { name = 'requester-chest', position = { x = this.market.position.x, y = this.market.position.y + 2 }, force = 'neutral' }
-        this.mystical_chest.minable = false
+        this.mystical_chest.minable_flag = false
         this.mystical_chest.destructible = false
         if not this.mystical_chest_price then
             Public.add_mystical_chest()
@@ -148,7 +148,6 @@ local function get_items(player)
     local aura_cost = round(fixed_prices.aura_cost * (1 + upgrades.aura_upgrades))
     local xp_point_boost_cost = round(fixed_prices.xp_point_boost_cost * (1 + upgrades.xp_points_upgrade))
     local explosive_bullets_cost = round(fixed_prices.explosive_bullets_cost)
-    local redraw_mystical_chest_cost = round(fixed_prices.redraw_mystical_chest_cost)
     local flamethrower_turrets_cost = round(fixed_prices.flamethrower_turrets_cost * (1 + flame_turret))
     local land_mine_cost = round(fixed_prices.land_mine_cost * (1 + upgrades.landmine.bought))
     local car_health_upgrade_pool = fixed_prices.car_health_upgrade_pool_cost
@@ -303,17 +302,6 @@ local function get_items(player)
             static = true
         }
     end
-
-    main_market_items['redraw_mystical_chest'] = {
-        stack = 1,
-        value = 'coin',
-        price = redraw_mystical_chest_cost,
-        tooltip = ({ 'main_market.mystical_chest' }),
-        sprite = 'achievement/logistic-network-embargo',
-        enabled = true,
-        upgrade = true,
-        static = true
-    }
 
     if upgrades.explosive_bullets_purchased then
         main_market_items['explosive_bullets'] = {
@@ -1345,27 +1333,6 @@ local function gui_click(event)
         this.upgrades.xp_points = this.upgrades.xp_points + 0.5
         this.upgrades.xp_points_upgrade = this.upgrades.xp_points_upgrade + item.stack
         this.upgrades.train_upgrade_contribution = this.upgrades.train_upgrade_contribution + item.price
-
-        redraw_market_items(data.item_frame, player, data.search_text)
-        redraw_coins_left(data.coins_left, player)
-
-        return
-    end
-
-    if name == 'redraw_mystical_chest' then
-        remove_item_count(player, item.value, item.price)
-        local message = ({ 'locomotive.mystical_bought_info', shopkeeper, player.name, format_number(item.price, true) })
-
-        Event.raise(Public.events.on_market_item_purchased, { cost = item.price })
-
-        Alert.alert_all_players(5, message)
-        Server.to_discord_bold(
-            table.concat {
-                player.name .. ' has rerolled the mystical chest for ' .. format_number(item.price) .. ' coins.'
-            }
-        )
-
-        Public.init_price_check(this.locomotive, this.mystical_chest)
 
         redraw_market_items(data.item_frame, player, data.search_text)
         redraw_coins_left(data.coins_left, player)

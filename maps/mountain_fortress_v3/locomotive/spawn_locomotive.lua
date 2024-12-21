@@ -119,7 +119,7 @@ local set_loco_cargo =
                 end
                 if surface.can_place_entity({ name = name, position = p[i] }) then
                     local e = surface.create_entity({ name = name, position = p[i], force = 'neutral', create_build_effect_smoke = false })
-                    e.minable = false
+                    e.minable_flag = false
                     e.destructible = true
                     e.health = random(15, 30)
                     local inventory = e.get_inventory(defines.inventory.chest)
@@ -224,8 +224,8 @@ function Public.locomotive_spawn(surface, position, reversed)
     end
 
     this.locomotive.color = { random(2, 255), random(60, 255), random(60, 255) }
-    this.locomotive.minable = false
-    this.locomotive_cargo.minable = false
+    this.locomotive.minable_flag = false
+    this.locomotive_cargo.minable_flag = false
     this.locomotive_cargo.operable = true
 
     local locomotive = ICW.register_wagon(this.locomotive)
@@ -255,7 +255,7 @@ function Public.locomotive_spawn(surface, position, reversed)
         for _ = 1, extra_wagons do
             local new_wagon = surface.create_entity({ name = 'cargo-wagon', position = new_position, force = 'player', defines.direction.north })
             if new_wagon and new_wagon.valid then
-                new_wagon.minable = false
+                new_wagon.minable_flag = false
                 new_wagon.operable = true
                 inc = inc + 7
                 new_position = { x = pos.x, y = pos.y + inc }

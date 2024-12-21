@@ -476,7 +476,7 @@ local function get_item_produced_count(_, item_name)
 
     local loco_surface = Public.get('loco_surface')
 
-    local production = force.get_item_production_statistics('nauvis').input_counts[item_name]
+    local production = force.get_item_production_statistics('fortress').input_counts[item_name]
     if not production then
         production = 0
     end
@@ -520,7 +520,7 @@ local function get_entity_mined_count(_, item_name)
     local force = game.forces.player
 
     local count = 0
-    for name, entity_count in pairs(force.get_entity_build_count_statistics('nauvis').output_counts) do
+    for name, entity_count in pairs(force.get_entity_build_count_statistics('fortress').output_counts) do
         if name:find(item_name) then
             count = count + entity_count
         end
@@ -533,7 +533,7 @@ local function get_killed_enemies_count(primary, secondary)
     local force = game.forces.player
 
     local count = 0
-    for name, entity_count in pairs(force.get_kill_count_statistics('nauvis').input_counts) do
+    for name, entity_count in pairs(force.get_kill_count_statistics('fortress').input_counts) do
         if name:find(primary) or name:find(secondary) then
             count = count + entity_count
         end

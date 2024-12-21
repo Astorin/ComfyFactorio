@@ -688,57 +688,57 @@ local function wall(p, data)
                 end
             elseif abs(p.y) < zone_settings.zone_depth * 2.5 then
                 if random(1, 4) == 1 then
-                    spawn_turret(entities, p, 3)
+                    spawn_turret(entities, p, 1)
                 else
-                    spawn_turret(entities, p, 4)
+                    spawn_turret(entities, p, 2)
                 end
             elseif abs(p.y) < zone_settings.zone_depth * 3.5 then
                 if random(1, 4) == 1 then
-                    spawn_turret(entities, p, 5)
+                    spawn_turret(entities, p, 2)
                 else
-                    spawn_turret(entities, p, 6)
+                    spawn_turret(entities, p, 3)
                 end
             elseif abs(p.y) < zone_settings.zone_depth * 4.5 then
                 if random(1, 4) == 1 then
-                    spawn_turret(entities, p, 7)
+                    spawn_turret(entities, p, 4)
                 else
-                    spawn_turret(entities, p, 8)
+                    spawn_turret(entities, p, 5)
                 end
             elseif abs(p.y) < zone_settings.zone_depth * 5.5 then
                 if random(1, 4) == 1 then
-                    spawn_turret(entities, p, 9)
+                    spawn_turret(entities, p, 6)
                 elseif random(1, 2) == 1 then
-                    spawn_turret(entities, p, 10)
+                    spawn_turret(entities, p, 7)
                 end
             elseif abs(p.y) < zone_settings.zone_depth * 6.5 then
                 if random(1, 4) == 1 then
-                    spawn_turret(entities, p, 11)
+                    spawn_turret(entities, p, 8)
                 elseif random(1, 2) == 1 then
-                    spawn_turret(entities, p, 12)
+                    spawn_turret(entities, p, 9)
                 end
             elseif abs(p.y) < zone_settings.zone_depth * 7.5 then
                 if random(1, 4) == 1 then
-                    spawn_turret(entities, p, 13)
+                    spawn_turret(entities, p, 10)
                 elseif random(1, 2) == 1 then
-                    spawn_turret(entities, p, 14)
+                    spawn_turret(entities, p, 11)
                 end
             elseif abs(p.y) < zone_settings.zone_depth * 8.5 then
                 if random(1, 4) == 1 then
-                    spawn_turret(entities, p, 15)
+                    spawn_turret(entities, p, 12)
                 elseif random(1, 2) == 1 then
-                    spawn_turret(entities, p, 16)
+                    spawn_turret(entities, p, 13)
                 end
             elseif abs(p.y) < zone_settings.zone_depth * 9.5 then
                 if random(1, 4) == 1 then
-                    spawn_turret(entities, p, 17)
+                    spawn_turret(entities, p, 14)
                 elseif random(1, 2) == 1 then
-                    spawn_turret(entities, p, 18)
+                    spawn_turret(entities, p, 15)
                 end
             elseif abs(p.y) < zone_settings.zone_depth * 10.5 then
                 if random(1, 4) == 1 then
-                    spawn_turret(entities, p, 19)
+                    spawn_turret(entities, p, 16)
                 elseif random(1, 2) == 1 then
-                    spawn_turret(entities, p, 20)
+                    spawn_turret(entities, p, 17)
                 end
             end
         elseif abs(p.y) > zone_settings.zone_depth * 5.5 then

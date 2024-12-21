@@ -263,7 +263,7 @@ local function create_chest(entity, name, mode)
             container.link_id = previous.link_id
             container.chest.link_id = previous.link_id
             container.mode = 2
-            container.chest.minable = false
+            container.chest.minable_flag = false
             container.chest.destructible = false
         end
 
@@ -943,7 +943,7 @@ local function on_gui_checked_state_changed(event)
         container.mode = 2
         container.linked_to = nil
         container.link_id = nil
-        container.chest.minable = true
+        container.chest.minable_flag = true
         container.chest.get_inventory(defines.inventory.chest).set_bar(1)
         refresh_main_frame({ unit_number = unit_number, player = player })
     end
@@ -1110,7 +1110,7 @@ local function on_entity_settings_pasted(event)
         destination_container.link_id = source_link_id
         destination_container.chest.link_id = source_link_id
         destination_container.mode = 2
-        destination_container.chest.minable = false
+        destination_container.chest.minable_flag = false
         destination_container.chest.destructible = false
         destination_container.chest.get_inventory(defines.inventory.chest).set_bar()
     end
@@ -1146,7 +1146,7 @@ function Public.migrate(source, destination)
 
     this.main_containers[destination.unit_number] = source_data
 
-    destination.minable = false
+    destination.minable_flag = false
     destination.destructible = false
     restore_link(source.unit_number, destination.unit_number)
 
@@ -1178,7 +1178,7 @@ Event.on_nth_tick(
                 if container.chest and container.chest.valid then
                     if container.chest.surface.index == active_surface_index then
                         if not WPT.locomotive.is_around_train(container.chest) then
-                            container.chest.minable = true
+                            container.chest.minable_flag = true
                             container.chest.link_id = 99999
                             container.chest.get_inventory(defines.inventory.chest).set_bar(1)
                             remove_chest(container.unit_number)
@@ -1186,14 +1186,14 @@ Event.on_nth_tick(
                         end
                     end
                     if container.chest.link_id == 99999 then
-                        container.chest.minable = true
+                        container.chest.minable_flag = true
                         container.chest.get_inventory(defines.inventory.chest).set_bar(1)
                         remove_chest(container.unit_number)
                         goto continue
                     end
 
                     if container.mode == 1 then
-                        container.chest.minable = false
+                        container.chest.minable_flag = false
                     end
                 end
                 if not container.chest or not container.chest.valid then
@@ -1356,7 +1356,7 @@ Gui.on_click(
             container.chest.link_id = share_container.link_id
             container.link_id = share_container.link_id
 
-            container.chest.minable = false
+            container.chest.minable_flag = false
 
             this.linked_gui[event.player.name].updated = false
             if element and element.valid then
@@ -1413,7 +1413,7 @@ Gui.on_click(
                 container.chest.link_id = share_container.link_id
                 container.link_id = share_container.link_id
 
-                container.chest.minable = false
+                container.chest.minable_flag = false
 
                 this.linked_gui[event.player.name].updated = false
                 refresh_main_frame({ unit_number = container.unit_number, player = event.player })

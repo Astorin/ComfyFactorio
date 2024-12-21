@@ -60,13 +60,13 @@ function Public.create_surface()
 
 
     if not this.active_surface_index then
-        this.active_surface_index = game.surfaces.nauvis.index
+        this.active_surface_index = game.surfaces.fortress.index
         -- this.active_surface_index = game.planets['fulgora'].create_surface(surface_name, map_gen_settings).index
     else
         this.active_surface_index = Public.soft_reset_map(game.surfaces[this.active_surface_index], map_gen_settings).index
     end
 
-    game.surfaces.nauvis.map_gen_settings = map_gen_settings
+    game.surfaces.fortress.map_gen_settings = map_gen_settings
 
 
     -- this.soft_reset_counter = Public.get_reset_counter()
@@ -126,7 +126,7 @@ function Public.create_landing_surface()
     for _, entity in pairs(walls) do
         local e = surface.create_entity(entity)
         e.destructible = false
-        e.minable = false
+        e.minable_flag = false
     end
 
     rendering.draw_text {
