@@ -43,6 +43,7 @@ local RPG_Progression = require 'utils.datastore.rpg_data'
 local OfflinePlayers = require 'modules.clear_vacant_players'
 local Beam = require 'modules.render_beam'
 local Commands = require 'utils.commands'
+local RobotLimits = require 'modules.robot_limits'
 
 local send_ping_to_channel = Discord.channel_names.mtn_channel
 local role_to_mention = Discord.role_mentions.mtn_fortress
@@ -158,7 +159,7 @@ local has_the_game_ended = function ()
                     game.print(({ 'entity.notify_restart' }), { r = 0.22, g = 0.88, b = 0.22 })
                     local message = 'Soft-reset is disabled! Server will restart from scenario to load new changes.'
                     Server.to_discord_bold(table.concat { '*** ', message, ' ***' })
-                    Server.start_scenario('Mountain_Fortress_v3')
+                    Server.start_scenario('')
                     this.announced_message = true
                     return
                 end
@@ -412,7 +413,7 @@ function Public.pre_init_task(current_task)
     WD.set_track_bosses_only(true)
     WD.set_pause_waves_custom_callback(Public.pause_waves_custom_callback_token)
     WD.set_threat_event_custom_callback(Public.check_if_spawning_near_train_custom_callback)
-    WD.set('surface_index', this.active_surface_index)
+
     WD.set('nest_building_density', 32)
     WD.set('spawn_position', { x = 0, y = 84 })
     WD.set('game_lost', true)
@@ -500,8 +501,8 @@ function Public.announce_new_map(current_task)
         Server.to_discord_named_raw(send_ping_to_channel, role_to_mention .. ' ** Mtn Fortress was just reset! **')
     end
     current_task.message = 'Announced new map!'
-    current_task.state = 'to_nauvis'
-    current_task.surface_name = 'nauvis'
+    current_task.state = 'to_fortress'
+    current_task.surface_name = 'fortress'
     current_task.delay = game.tick + 200
 end
 
@@ -525,7 +526,7 @@ function Public.move_players(current_task)
     current_task.state = 'pre_init_task'
 end
 
-function Public.to_nauvis(current_task)
+function Public.to_fortress(current_task)
     local surface = game.get_surface(current_task.surface_name)
     if not surface or not surface.valid then
         return
@@ -567,7 +568,7 @@ function Public.to_nauvis(current_task)
     local starting_items = Public.get_func('starting_items')
     Public.equip_players(starting_items, false)
 
-    current_task.message = 'Moved players back to nauvis!'
+    current_task.message = 'Moved players back to fortress!'
     current_task.done = true
 end
 
@@ -584,30 +585,33 @@ function Public.init_stateful(current_task)
     end
 
     current_task.message = 'Initialized stateful!'
-    current_task.state = 'clear_nauvis'
+    current_task.state = 'clear_fortress'
 end
 
-function Public.create_custom_nauvis_surface(current_task)
-    local nauvis = game.surfaces['nauvis']
-    if nauvis then
-        nauvis.clear()
+function Public.create_custom_fortress_surface(current_task)
+    local fortress = game.surfaces['fortress']
+    if fortress then
+        fortress.clear()
     end
     Public.set('active_surface_index', Public.create_surface())
-    current_task.message = 'Created custom nauvis surface!'
+    local active_surface_index = Public.get('active_surface_index')
+
+    WD.set('surface_index', active_surface_index)
+    current_task.message = 'Created custom fortress surface!'
     current_task.delay = game.tick + 300
     current_task.state = 'reset_map'
 end
 
-function Public.clear_nauvis(current_task)
-    local surface = game.surfaces['nauvis']
+function Public.clear_fortress(current_task)
+    local surface = game.surfaces['fortress']
     surface.clear()
 
     surface.request_to_generate_chunks({ x = -20, y = -22 }, 1)
     surface.force_generate_chunk_requests()
 
-    current_task.state = 'create_custom_nauvis_surface'
+    current_task.state = 'create_custom_fortress_surface'
     current_task.delay = game.tick + 50
-    current_task.message = 'Cleared nauvis!'
+    current_task.message = 'Cleared fortress!'
 end
 
 function Public.reset_map(current_task)
@@ -778,6 +782,8 @@ function Public.init_mtn()
     WD.set_pause_waves_custom_callback(Public.pause_waves_custom_callback_token)
     WD.set_threat_event_custom_callback(Public.check_if_spawning_near_train_custom_callback)
 
+    RobotLimits.enable(false)
+
     Explosives.disable(false)
     Explosives.slow_explode(true)
     BiterHealthBooster.acid_nova(true)
@@ -820,7 +826,9 @@ function Public.init_mtn()
     Explosives.set_destructible_tile('water-mud', 1000)
     Explosives.set_destructible_tile('lab-dark-2', 1000)
     Explosives.set_whitelist_entity('straight-rail')
-    Explosives.set_whitelist_entity('curved-rail')
+    Explosives.set_whitelist_entity('curved-rail-a')
+    Explosives.set_whitelist_entity('curved-rail-b')
+    Explosives.set_whitelist_entity('half-diagonal-rail')
     Explosives.set_whitelist_entity('character')
     Explosives.set_whitelist_entity('spidertron')
     Explosives.set_whitelist_entity('car')

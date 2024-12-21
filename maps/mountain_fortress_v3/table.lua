@@ -52,7 +52,7 @@ Public.events = {
 
 local init_name = 'Init'
 Public.init_name = init_name
-local scenario_name = 'nauvis'
+local scenario_name = 'fortress'
 Public.scenario_name = scenario_name
 local discord_name = 'Mtn Fortress'
 Public.discord_name = discord_name
@@ -207,7 +207,7 @@ function Public.reset_main_table()
     this.mined_scrap = 0
     this.print_tech_to_discord = true
     this.biters_killed = 0
-    this.cleared_nauvis = false
+    this.cleared_fortress = false
     this.locomotive_pos = { tbl = {} }
     this.trusted_only_car_tanks = true
     --!grief prevention
@@ -303,7 +303,6 @@ function Public.reset_main_table()
         land_mine_cost = 2,
         car_health_upgrade_pool_cost = 100000,
         tile_when_mining_cost = random(45000, 70000),
-        redraw_mystical_chest_cost = 3000,
         roboport_cost = random(750, 1500),
         construction_bot_cost = random(150, 350),
         chest_cost = random(400, 600)

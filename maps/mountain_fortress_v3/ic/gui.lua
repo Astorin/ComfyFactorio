@@ -106,7 +106,7 @@ local function transfer_player_table(player, new_player)
         end
         car.owner = new_player.name
 
-        car.entity.minable = true
+        car.entity.minable_flag = true
 
         Functions.render_owner_text(renders, player, car.entity, new_player)
 

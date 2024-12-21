@@ -66,7 +66,7 @@ function Public.add_loot(surface, position, chest, collision)
     for _, item_stack in pairs(item_stacks) do
         container.insert(item_stack)
     end
-    container.minable = false
+    container.minable_flag = false
 
     if random(1, 8) == 1 then
         container.insert({ name = 'coin', count = random(1, 32) })
@@ -119,7 +119,7 @@ function Public.add_loot_rare(surface, position, chest, magic)
     for _, item_stack in pairs(item_stacks) do
         container.insert(item_stack)
     end
-    container.minable = false
+    container.minable_flag = false
 
     if random(1, 8) == 1 then
         container.insert({ name = 'coin', count = random(1, 32) })

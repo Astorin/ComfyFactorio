@@ -943,7 +943,7 @@ Public.disable_minable_callback =
     Task.register(
         function (entity)
             if entity and entity.valid then
-                entity.minable = false
+                entity.minable_flag = false
             end
         end
     )
@@ -953,7 +953,7 @@ Public.disable_minable_and_ICW_callback =
         function (entity)
             if entity and entity.valid then
                 local wagons_in_the_wild = Public.get('wagons_in_the_wild')
-                entity.minable = false
+                entity.minable_flag = false
                 entity.destructible = false
                 ICW.register_wagon(entity)
 
@@ -967,7 +967,7 @@ Public.disable_destructible_callback =
         function (entity)
             if entity and entity.valid then
                 entity.destructible = false
-                entity.minable = false
+                entity.minable_flag = false
             end
         end
     )
@@ -1059,7 +1059,7 @@ Public.magic_item_crafting_callback =
                 return
             end
 
-            entity.minable = false
+            entity.minable_flag = false
             entity.destructible = false
             entity.operable = false
 
@@ -1122,7 +1122,7 @@ Public.magic_item_crafting_callback_weighted =
                 entity.destructible = false
             end
 
-            entity.minable = false
+            entity.minable_flag = false
             entity.operable = false
 
             local p = entity.position
@@ -2354,6 +2354,28 @@ function Public.set_spawn_position()
     ::continue::
 end
 
+local function on_marked_for_deconstruction(event)
+    local entity = event.entity
+    if not entity or not entity.valid then
+        return
+    end
+
+    if not event.player_index then
+        return
+    end
+
+    local player = game.get_player(event.player_index)
+    if not player or not player.valid then
+        return
+    end
+
+    if player.controller_type == defines.controllers.remote then
+        entity.cancel_deconstruction(player.force, player)
+        player.print("You cannot deconstruct while in remove view!", { r = 1, g = 0.5, b = 0.5 })
+    end
+end
+
+
 function Public.on_player_joined_game(event)
     local players = Public.get('players')
     local player = game.players[event.player_index]
@@ -2362,7 +2384,7 @@ function Public.on_player_joined_game(event)
     Difficulty.clear_top_frame(player)
     Modifiers.update_player_modifiers(player)
     local active_surface_index = Public.get('active_surface_index')
-    local surface = game.surfaces[active_surface_index or 'nauvis']
+    local surface = game.surfaces[active_surface_index or 'fortress']
 
     local current_task = Public.get('current_task')
     if not current_task.done then
@@ -2964,6 +2986,7 @@ Event.add(de.on_player_driving_changed_state, on_player_driving_changed_state)
 Event.add(de.on_pre_player_toggled_map_editor, on_pre_player_toggled_map_editor)
 Event.add(de.on_player_cursor_stack_changed, on_player_cursor_stack_changed)
 Event.add(de.on_chart_tag_added, on_chart_tag_added)
+Event.add(de.on_marked_for_deconstruction, on_marked_for_deconstruction)
 Event.on_nth_tick(10, tick)
 Event.add(WD.events.on_wave_created, on_wave_created)
 Event.add(WD.events.on_primary_target_missing, on_primary_target_missing)

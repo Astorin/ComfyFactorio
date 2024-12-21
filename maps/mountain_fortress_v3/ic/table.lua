@@ -36,7 +36,7 @@ function Public.reset()
     this.renders = {}
     this.saved_surfaces = {}
     this.surfaces_deleted_by_button = {}
-    this.allowed_surface = 'nauvis'
+    this.allowed_surface = 'fortress'
     this.trust_system = {}
     this.players = {}
     this.players_persistent = {}

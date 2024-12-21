@@ -82,7 +82,7 @@ local enable_car_to_be_mined =
             local entity = event.entity
             local owner_name = event.owner_name
             if entity and entity.valid then
-                entity.minable = true
+                entity.minable_flag = true
                 local msg = owner_name .. "'s vehicle is now minable!"
                 local p = {
                     position = entity.position
@@ -706,7 +706,7 @@ local function construct_doors(car)
                 }
             )
         e.destructible = false
-        e.minable = false
+        e.minable_flag = false
         e.operable = false
         e.get_inventory(defines.inventory.fuel).insert({ name = 'coal', count = 1 })
         if type(car.entity) == 'boolean' then
@@ -1034,7 +1034,7 @@ function Public.kill_car_but_save_surface(entity)
     kick_players_out_of_vehicles(car)
     kick_players_from_surface(car)
 
-    car.entity.minable = true
+    car.entity.minable_flag = true
 
     local trust_system = IC.get('trust_system')
     local owner = car.owner
@@ -1226,7 +1226,7 @@ function Public.create_car_room(car)
             }
         )
     e1.destructible = false
-    e1.minable = false
+    e1.minable_flag = false
 
     local e2 =
         surface.create_entity(
@@ -1238,7 +1238,7 @@ function Public.create_car_room(car)
             }
         )
     e2.destructible = false
-    e2.minable = false
+    e2.minable_flag = false
     car.transfer_entities = { e1, e2 }
 end
 
@@ -1445,7 +1445,7 @@ function Public.use_door_with_entity(player, door)
                     state = 'add'
                 }
             )
-            car.entity.minable = false
+            car.entity.minable_flag = false
         end
 
         if not validate_entity(surface) then
@@ -1476,7 +1476,7 @@ function Public.use_door_with_entity(player, door)
                     state = 'remove'
                 }
             )
-            car.entity.minable = true
+            car.entity.minable_flag = true
         end
         local surface = car.entity.surface
         local x_vector = (door.position.x / math.abs(door.position.x)) * 2
@@ -1514,7 +1514,7 @@ function Public.on_player_died(player)
         if car.owner == player.name then
             local entity = car.entity
             if entity and entity.valid then
-                entity.minable = false
+                entity.minable_flag = false
             end
         end
     end
@@ -1526,7 +1526,7 @@ function Public.on_player_respawned(player)
         if car.owner == player.name then
             local entity = car.entity
             if entity and entity.valid then
-                entity.minable = true
+                entity.minable_flag = true
             end
         end
     end

@@ -42,7 +42,7 @@ function Public.blueprint()
             local _, ent = ghost.silent_revive({ raise_revive = true })
             if ent and ent.valid then
                 ent.destructible = false
-                ent.minable = false
+                ent.minable_flag = false
             end
         end
     end

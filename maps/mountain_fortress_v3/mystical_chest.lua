@@ -6,11 +6,14 @@ local Alert = require 'utils.alert'
 local Task = require 'utils.task_token'
 local StatData = require 'utils.datastore.statistics'
 
+local zone_settings = Public.zone_settings
 local shuffle = table.shuffle_table
 local random = math.random
 local floor = math.floor
 local insert = table.insert
 local abs = math.abs
+
+local modifier_cooldown = 108000 -- 30 minutes
 
 local item_worths = {
     ['water-barrel'] = 4,
@@ -125,9 +128,13 @@ local function init_price_check(locomotive)
     if not (mystical_chest and mystical_chest.valid) then
         return
     end
+    local adjusted_zones = Public.get('adjusted_zones')
+
+    local zone = floor((abs(locomotive.position.y / zone_settings.zone_depth)) % adjusted_zones.size) + 1
 
     local roll = 48 + abs(locomotive.position.y) * 1.75
     roll = roll * random(25, 1337) * 0.01
+    roll = roll * zone
 
     local item_stacks = {}
     local roll_count = 2
@@ -194,6 +201,19 @@ local restore_crafting_speed_token =
         end
     )
 
+local restore_modifier_token =
+    Task.register(
+        function (event)
+            local mc_rewards = Public.get('mc_rewards')
+            local modifier = event.modifier
+            if not modifier then
+                return
+            end
+
+            mc_rewards.temp_boosts[modifier] = false
+        end
+    )
+
 local restore_movement_speed_token =
     Task.register(
         function (event)
@@ -211,10 +231,19 @@ local restore_movement_speed_token =
 local mc_random_rewards = {
     {
         name = 'XP',
+        str = 'xp',
         color = { r = 0.00, g = 0.45, b = 0.00 },
         tooltip = 'Selecting this will insert random XP onto the global xp pool!',
-        func = (function (player)
+        func = (function (player, zone)
+            local mc_rewards = Public.get('mc_rewards')
+            if mc_rewards.temp_boosts.xp then
+                return false, '[Rewards] XP bonus is already applied and is on cooldown. Please choose another reward.'
+            end
+            mc_rewards.temp_boosts.xp = true
+            Task.set_timeout_in_ticks(modifier_cooldown, restore_modifier_token, { modifier = 'xp' })
             local rng = random(2048, 10240)
+            local scale_factor = 0.5 + (zone / 20)
+            rng = floor(rng * scale_factor)
             RPG.add_to_global_pool(rng)
             local message = ({ 'locomotive.xp_bonus', player.name })
             Alert.alert_all_players(15, message, nil, 'achievement/tech-maniac')
@@ -224,12 +253,22 @@ local mc_random_rewards = {
     },
     {
         name = 'Coins',
+        str = 'coins',
         color = { r = 0.00, g = 0.35, b = 0.00 },
         tooltip = 'Selecting this will grant each player some coins!',
-        func = (function (p)
-            local rng = random(512, 2048)
+        func = (function (p, zone)
+            local mc_rewards = Public.get('mc_rewards')
+            if mc_rewards.temp_boosts.coins then
+                return false, '[Rewards] Coin bonus is already applied and is on cooldown. Please choose another reward.'
+            end
+
+            mc_rewards.temp_boosts.coins = true
+            Task.set_timeout_in_ticks(modifier_cooldown, restore_modifier_token, { modifier = 'coins' })
             local players = game.connected_players
             for i = 1, #players do
+                local rng = random(256, 1024)
+                local scale_factor = 0.5 + (zone / 20)
+                rng = floor(rng * scale_factor)
                 local player = players[i]
                 if player and player.valid then
                     if player.can_insert({ name = 'coin', count = rng }) then
@@ -249,7 +288,7 @@ local mc_random_rewards = {
         str = 'movement',
         color = { r = 0.00, g = 0.25, b = 0.00 },
         tooltip = 'Selecting this will grant the team a bonus movement speed for 15 minutes!',
-        func = (function (player)
+        func = (function (player, zone)
             local mc_rewards = Public.get('mc_rewards')
             local force = game.forces.player
             if mc_rewards.temp_boosts.movement then
@@ -259,7 +298,12 @@ local mc_random_rewards = {
             mc_rewards.temp_boosts.movement = true
 
             Task.set_timeout_in_ticks(54000, restore_movement_speed_token, { speed = force.character_running_speed_modifier })
-            force.character_running_speed_modifier = force.character_running_speed_modifier + 0.6
+            local scale_factor = 0.5 + (zone / 10)
+            local speed = 0.6 * scale_factor
+            if speed > 1 then
+                speed = 1
+            end
+            force.character_running_speed_modifier = force.character_running_speed_modifier + speed
             local message = ({ 'locomotive.movement_bonus', player.name })
             Alert.alert_all_players(15, message, nil, 'achievement/tech-maniac')
             return true
@@ -290,6 +334,7 @@ local mc_random_rewards = {
     },
     {
         name = 'Crafting speed bonus',
+        str = 'crafting',
         color = { r = 0.00, g = 0.00, b = 0.25 },
         tooltip = 'Selecting this will grant all players 100% crafting bonus for 15 minutes!',
         func = (function (player)
@@ -420,7 +465,16 @@ local function on_gui_click(event)
 
     for id, data in pairs(current) do
         if data.id == i then
-            local success, msg = mc_random_rewards[id].func(player)
+            local locomotive = Public.get('locomotive')
+            if not locomotive then
+                return
+            end
+            if not locomotive.valid then
+                return
+            end
+            local adjusted_zones = Public.get('adjusted_zones')
+            local zone = floor((abs(locomotive.position.y / zone_settings.zone_depth)) % adjusted_zones.size) + 1
+            local success, msg = mc_random_rewards[id].func(player, zone)
             if not success then
                 return player.print(msg, { color = Color.fail })
             end
@@ -503,6 +557,7 @@ function Public.add_mystical_chest(player)
     if not locomotive.valid then
         return
     end
+
 
     local mystical_chest_price = Public.get('mystical_chest_price')
     local mystical_chest = Public.get('mystical_chest')

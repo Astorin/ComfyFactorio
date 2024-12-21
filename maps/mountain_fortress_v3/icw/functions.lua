@@ -12,12 +12,7 @@ local deepcopy = table.deepcopy
 local random = math.random
 local sqrt = math.sqrt
 
-local is_modded = script.active_mods['MtnFortressAddons'] or false
-
 local out_of_map_tile = 'out-of-map'
-if is_modded then
-    out_of_map_tile = 'void-tile'
-end
 
 local scenario_name = WPT.scenario_name
 local fallout_width = 64
@@ -57,67 +52,67 @@ local add_chests_to_wagon_token =
                 return error('Surface was invalid, please check this out!')
             end
             left_1.destructible = false
-            left_1.minable = false
+            left_1.minable_flag = false
 
             local left_2 = LinkedChests.add(surface, { position1[1] - 1, position1[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_2')
             left_2.destructible = false
-            left_2.minable = false
+            left_2.minable_flag = false
 
             local left_3 = LinkedChests.add(surface, { position1[1] - 2, position1[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_3')
             left_3.destructible = false
-            left_3.minable = false
+            left_3.minable_flag = false
 
             local left_4 = LinkedChests.add(surface, { position1[1] - 3, position1[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_4')
             left_4.destructible = false
-            left_4.minable = false
+            left_4.minable_flag = false
 
             local right_1 = LinkedChests.add(surface, position2, 'player', 'wagon_' .. wagon.entity.unit_number .. '_5')
             right_1.destructible = false
-            right_1.minable = false
+            right_1.minable_flag = false
 
             local right_2 = LinkedChests.add(surface, { position2[1] + 1, position2[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_6')
             right_2.destructible = false
-            right_2.minable = false
+            right_2.minable_flag = false
 
             local right_3 = LinkedChests.add(surface, { position2[1] + 2, position2[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_7')
             right_3.destructible = false
-            right_3.minable = false
+            right_3.minable_flag = false
 
             local right_4 = LinkedChests.add(surface, { position2[1] + 3, position2[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_8')
             right_4.destructible = false
-            right_4.minable = false
+            right_4.minable_flag = false
 
             local bottom_left_1 = LinkedChests.add(surface, position3, 'player', 'wagon_' .. wagon.entity.unit_number .. '_9')
             bottom_left_1.destructible = false
-            bottom_left_1.minable = false
+            bottom_left_1.minable_flag = false
 
             local bottom_left_2 = LinkedChests.add(surface, { position3[1] - 1, position3[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_10')
             bottom_left_2.destructible = false
-            bottom_left_2.minable = false
+            bottom_left_2.minable_flag = false
 
             local bottom_left_3 = LinkedChests.add(surface, { position3[1] - 2, position3[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_11')
             bottom_left_3.destructible = false
-            bottom_left_3.minable = false
+            bottom_left_3.minable_flag = false
 
             local bottom_left_4 = LinkedChests.add(surface, { position3[1] - 3, position3[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_12')
             bottom_left_4.destructible = false
-            bottom_left_4.minable = false
+            bottom_left_4.minable_flag = false
 
             local bottom_right_1 = LinkedChests.add(surface, position4, 'player', 'wagon_' .. wagon.entity.unit_number .. '_13')
             bottom_right_1.destructible = false
-            bottom_right_1.minable = false
+            bottom_right_1.minable_flag = false
 
             local bottom_right_2 = LinkedChests.add(surface, { position4[1] + 1, position4[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_14')
             bottom_right_2.destructible = false
-            bottom_right_2.minable = false
+            bottom_right_2.minable_flag = false
 
             local bottom_right_3 = LinkedChests.add(surface, { position4[1] + 2, position4[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_15')
             bottom_right_3.destructible = false
-            bottom_right_3.minable = false
+            bottom_right_3.minable_flag = false
 
             local bottom_right_4 = LinkedChests.add(surface, { position4[1] + 3, position4[2] }, 'player', 'wagon_' .. wagon.entity.unit_number .. '_16')
             bottom_right_4.destructible = false
-            bottom_right_4.minable = false
+            bottom_right_4.minable_flag = false
         end
     )
 
@@ -227,7 +222,7 @@ local function teleport_char(position, destination_area, wagon)
                 player.physical_position.x,
                 player.physical_position.y + (destination_area.left_top.y - wagon.area.left_top.y)
             }
-            player.teleport({ 0, 0 }, game.surfaces.nauvis)
+            player.teleport({ 0, 0 }, game.surfaces.fortress)
         end
     end
 end
@@ -513,7 +508,7 @@ local function construct_wagon_doors(icw, wagon)
                 }
             )
         e.destructible = false
-        e.minable = false
+        e.minable_flag = false
         e.operable = false
         e.get_inventory(defines.inventory.fuel).insert({ name = 'coal', count = 1 })
         icw.doors[e.unit_number] = wagon.entity.unit_number
@@ -686,7 +681,7 @@ function Public.create_wagon_room(icw, wagon)
                 }
             )
         e.destructible = false
-        e.minable = false
+        e.minable_flag = false
         wagon.transfer_entities = { e }
         return
     end
@@ -740,7 +735,7 @@ function Public.migrate_wagon(icw, source, target)
         return
     end
 
-    target.minable = false
+    target.minable_flag = false
 
     local target_wagon = target.unit_number
     local source_wagon = source.unit_number
