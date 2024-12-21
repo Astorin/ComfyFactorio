@@ -809,7 +809,7 @@ Gui.on_click(
 )
 
 if script.active_mods['MtnFortressAddons'] then
-    Event.add("mtn-shift-autostash-all", function (event)
+    Event.add(defines.events["mtn-shift-autostash-all"], function (event)
         local player = game.get_player(event.player_index)
         if not player or not player.valid then
             return
@@ -835,7 +835,7 @@ if script.active_mods['MtnFortressAddons'] then
         auto_stash(player, event)
     end)
 
-    Event.add("mtn-shift-autostash-ores", function (event)
+    Event.add(defines.events["mtn-shift-autostash-ores"], function (event)
         local player = game.get_player(event.player_index)
         if not player or not player.valid then
             return
@@ -861,7 +861,7 @@ if script.active_mods['MtnFortressAddons'] then
         auto_stash(player, event)
     end)
 
-    Event.add("mtn-shift-autostash-furnaces", function (event)
+    Event.add(defines.events["mtn-shift-autostash-furnaces"], function (event)
         local player = game.get_player(event.player_index)
         if not player or not player.valid then
             return
@@ -888,7 +888,7 @@ if script.active_mods['MtnFortressAddons'] then
         auto_stash(player, event)
     end)
 
-    Event.add("mtn-shift-autostash-filtered", function (event)
+    Event.add(defines.events["mtn-shift-autostash-filtered"], function (event)
         local player = game.get_player(event.player_index)
         if not player or not player.valid then
             return
@@ -915,7 +915,7 @@ if script.active_mods['MtnFortressAddons'] then
         auto_stash(player, event)
     end)
 
-    Event.add("mtn-shift-autostash-wagon", function (event)
+    Event.add(defines.events["mtn-shift-autostash-wagon"], function (event)
         local player = game.get_player(event.player_index)
         if not player or not player.valid then
             return

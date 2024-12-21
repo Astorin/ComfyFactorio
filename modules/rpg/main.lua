@@ -1267,7 +1267,7 @@ Event.add(defines.events.on_player_respawned, on_player_respawned)
 Event.add(defines.events.on_player_rotated_entity, on_player_rotated_entity)
 Event.add(defines.events.on_pre_player_mined_item, on_pre_player_mined_item)
 if script.active_mods['MtnFortressAddons'] then
-    Event.add('mtn-shift-cast-spell', on_player_used_capsule_custom)
+    Event.add(defines.events['mtn-shift-cast-spell'], on_player_used_capsule_custom)
 end
 Event.add(defines.events.on_player_used_capsule, on_player_used_capsule)
 Event.add(defines.events.on_player_changed_surface, on_player_changed_surface)
