@@ -641,7 +641,8 @@ end
 local building_and_mining_blacklist = {
     ['tile-ghost'] = true,
     ['entity-ghost'] = true,
-    ['item-entity'] = true
+    ['item-entity'] = true,
+    ['fish'] = true,
 }
 
 local function on_player_died(event)
