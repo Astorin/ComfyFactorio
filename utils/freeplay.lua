@@ -277,17 +277,26 @@ local freeplay_interface = {
     set_skip_intro = function (bool)
         this.skip_intro = bool
     end,
-    set_disabled = function (bool)
-        this.enabled = bool
+    get_skip_intro = function ()
+        return this.skip_intro
     end,
-    set_custom_surface_name = function (str)
-        this.custom_surface_name = str or error('Remote call parameter to freeplay set custom_surface_name must be string')
+    set_custom_intro_message = function (message)
+        this.custom_intro_message = message
+    end,
+    get_custom_intro_message = function ()
+        return this.custom_intro_message
     end,
     set_chart_distance = function (value)
-        this.chart_distance = tonumber(value) or error('Remote call parameter to freeplay set chart distance must be a number')
+        this.chart_distance = tonumber(value) or error("Remote call parameter to freeplay set chart distance must be a number")
+    end,
+    get_disable_crashsite = function ()
+        return this.disable_crashsite
     end,
     set_disable_crashsite = function (bool)
         this.disable_crashsite = bool
+    end,
+    get_init_ran = function ()
+        return this.init_ran
     end,
     get_ship_items = function ()
         return this.crashed_ship_items
@@ -300,6 +309,12 @@ local freeplay_interface = {
     end,
     set_debris_items = function (map)
         this.crashed_debris_items = map or error("Remote call parameter to freeplay set respawn items can't be nil.")
+    end,
+    get_ship_parts = function ()
+        return this.crashed_ship_parts
+    end,
+    set_ship_parts = function (parts)
+        this.crashed_ship_parts = parts or error("Remote call parameter to freeplay set ship parts can't be nil.")
     end
 }
 
