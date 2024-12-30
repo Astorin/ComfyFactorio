@@ -447,6 +447,7 @@ function Public.pre_init_task(current_task)
     end
     RPG.set_extra('modded_hotkeys', true)
     Public.clear_all_chart_tags()
+    Explosives.disable(false)
 
     current_task.message = 'Pre init done!'
     current_task.state = 'init_stateful'
@@ -784,7 +785,6 @@ function Public.init_mtn()
 
     RobotLimits.enable(false)
 
-    Explosives.disable(false)
     Explosives.slow_explode(true)
     BiterHealthBooster.acid_nova(true)
     BiterHealthBooster.check_on_entity_died(true)
