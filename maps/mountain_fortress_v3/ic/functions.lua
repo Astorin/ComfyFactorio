@@ -411,7 +411,7 @@ local function kick_players_out_of_vehicles(car)
     for _, player in pairs(game.connected_players) do
         local character = player.character
         if validate_entity(character) and character.driving then
-            if car.surface.index == player.physical_surface.index then
+            if car.surface == player.physical_surface.index then
                 character.driving = false
             end
         end
