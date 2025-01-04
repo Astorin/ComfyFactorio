@@ -1335,7 +1335,7 @@ function Public.remove_invalid_cars()
                     end
                 end
                 kick_players_from_surface(car)
-                log('IC::remove_invalid_cars -> car.entity was not valid - removing unit number: ' .. car_index)
+                log('IC::remove_invalid_cars -> car.entity was not valid for car_index: ' .. car_index)
             else
                 local owner = game.get_player(car.owner)
                 if owner and owner.valid then
@@ -1357,8 +1357,7 @@ function Public.remove_invalid_cars()
                         Task.set_timeout_in_ticks(30, enable_car_to_be_mined, { entity = car.entity, owner_name = owner.name })
                         cars[car_index] = nil
                         if cars[car_index] then
-                            log('IC::remove_invalid_cars -> car will be deleted since no valid owner was found.')
-                            log(serpent.block(cars[car_index]))
+                            log('IC::remove_invalid_cars -> car will be deleted since no valid owner was found for car index: ' .. car_index)
                             cars[car_index] = nil
                         end
                     end
@@ -1372,21 +1371,17 @@ function Public.remove_invalid_cars()
         if surface and surface.valid then
             local valid_surface = get_car_by_surface(surface.index)
             if not valid_surface then
-                log(serpent.block(car_to_surface_index))
-                log(serpent.block(cars[car_to_surface_index]))
-                log(serpent.block(cars))
                 game.delete_surface(surface)
                 surfaces[car_to_surface_index] = nil
-                log('IC::remove_invalid_cars -> surface was valid and will be deleted since no car entry.')
+                log('IC::remove_invalid_cars -> surface was valid and will be deleted since no car entry for car_to_surface_index: ' .. car_to_surface_index)
             end
         else
             if cars[car_to_surface_index] then
-                log('IC::remove_invalid_cars -> car will be deleted since no valid surface was found.')
-                log(serpent.block(cars[car_to_surface_index]))
+                log('IC::remove_invalid_cars -> car will be deleted since no valid surface was found for car_to_surface_index: ' .. car_to_surface_index)
                 cars[car_to_surface_index] = nil
             end
 
-            log('IC::remove_invalid_cars -> surface was not valid upon trying to delete for: ' .. car_to_surface_index)
+            log('IC::remove_invalid_cars -> surface was not valid upon trying to delete for car_to_surface_index: ' .. car_to_surface_index)
             surfaces[car_to_surface_index] = nil
         end
     end
