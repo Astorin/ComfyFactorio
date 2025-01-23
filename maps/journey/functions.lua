@@ -253,7 +253,7 @@ local function delete_nauvis_chunks(journey)
         return
     end
 
-    for _ = 1, 1, 1 do --1 chunk per action until 2.0.31! TODO: fix back to 12 when version released
+    for _ = 1, 12, 1 do
         local chunk_position = journey.nauvis_chunk_positions[journey.size_of_nauvis_chunk_positions]
         if chunk_position then
             surface.delete_chunk(chunk_position)
@@ -1575,13 +1575,10 @@ function Public.mothership_waiting_for_players(journey)
 end
 
 function Public.teleporters(journey, player)
-    if not player.character then
+    if not player.character or not player.character.valid then
         return
     end
-    if not player.character.valid then
-        return
-    end
-    if player.vehicle then
+    if player.character.vehicle then
         return
     end
     local surface = player.physical_surface
