@@ -402,7 +402,7 @@ Public.volcanic = {
     end,
     on_player_changed_position = function (event)
         local player = game.players[event.player_index]
-        if player.driving then
+        if player.driving or player.controller_type == defines.controllers.remote then
             return
         end
         local surface = player.surface
